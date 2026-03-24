@@ -344,13 +344,4 @@ public class PatchUtil {
         }
         return insnNodeList;
     }
-
-    public static InsnList toInsnList(List<AbstractInsnNode> list) {
-        InsnList cloneList = new InsnList();
-        for (AbstractInsnNode insn : list) {
-            // clone
-            cloneList.add(insn.clone(null));
-        }
-        return cloneList;
-    }
 }
