@@ -1,3 +1,15 @@
+import org.spongepowered.asm.gradle.plugins.MixinExtension
+buildscript {
+    repositories {
+        // These repositories are only for Gradle plugins, put any other repositories in the repository block further below
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
+
 plugins {
     id 'eclipse'
     id 'idea'
@@ -85,6 +97,7 @@ minecraft {
         client {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             property 'forge.enabledGameTestNamespaces', mod_id
+            // jvmArgs '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
         }
 
         server {
@@ -132,11 +145,6 @@ sourceSets {
     }
 }
 
-mixin {
-    add sourceSets.main, "${mod_id}.refmap.json"
-    config "${mod_id}.mixins.json"
-}
-
 repositories {
     maven {
         url "https://maven.shadowsoffire.dev/releases"
@@ -155,6 +163,7 @@ repositories {
 }
 configurations {
     runtimeImplementation       .extendsFrom implementation
+    runtimeAnnotationProcessor  .extendsFrom implementation
 }
 
 dependencies {
@@ -191,19 +200,25 @@ dependencies {
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 // When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.
 // See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
-tasks.named('processResources', ProcessResources).configure {
+/*tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
             forge_version: forge_version, forge_version_range: forge_version_range,
             loader_version_range: loader_version_range,
             mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
             mod_authors: mod_authors, mod_description: mod_description,
+            apotheosis_version_range: apotheosis_version_range
     ]
     inputs.properties replaceProperties
 
     filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
         expand replaceProperties + [project: project]
     }
+}*/
+
+mixin {
+    add sourceSets.runtime, "${mod_id}.refmap.json"
+//    config "${mod_id}.mixins.json"
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -213,6 +228,7 @@ tasks.withType(ProcessResources).configureEach {
             loader_version_range: loader_version_range,
             mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
             mod_authors: mod_authors, mod_description: mod_description,
+            apotheosis_version_range: apotheosis_version_range
     ]
     inputs.properties replaceProperties
 
@@ -256,17 +272,6 @@ sourceSets.main.java.srcDir(
 compileJava.dependsOn("generateBuildInfo")
 
 tasks.register('jarCoreLib', Jar) {
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id + '-core',
-                'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1', // We are version 1 of ourselves
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
     from(zipTree(tasks.jar.outputs.files.singleFile))
     exclude 'META-INF/mods.toml'
     exclude 'META-INF/runtime'
@@ -276,19 +281,34 @@ tasks.register('jarCoreLib', Jar) {
 }
 
 tasks.register('jarRuntime', Jar) {
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id + '-runtime',
+    from(sourceSets.runtime.output)
+    archiveClassifier.set('runtime')
+}
+
+tasks.withType(Jar).forEach { t ->
+    if (t.getName().equals('jar')) {
+        return;
+    }
+    else {
+        var title = mod_id + '-' + t.archiveClassifier.get()
+        var attrs = [
+                'Specification-Title'     : title,
                 'Specification-Vendor'    : mod_authors,
                 'Specification-Version'   : '1', // We are version 1 of ourselves
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
+        ]
+        if (t.getName().equals('jarRuntime')) {
+            attrs.MixinConnector = mixin_connector
+        }
+        t.configure {
+            manifest {
+                attributes(attrs)
+            }
+        }
     }
-    from(sourceSets.runtime.output)
-    archiveClassifier.set('runtime')
 }
 
 reobf {
@@ -311,6 +331,7 @@ tasks.named('jar', Jar).configure {
     }
 
     exclude 'net/rtxyd/fallen_dev_helper/FallenLib.class'
+    exclude "${mod_id}.refmap.json"
 
     // This is the preferred method to reobfuscate your jar file
     dependsOn 'reobfJarRuntime'
