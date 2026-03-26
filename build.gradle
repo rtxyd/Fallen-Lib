@@ -244,12 +244,12 @@ tasks.withType(Copy).configureEach {
 tasks.register("generateBuildInfo") {
     def outputDir = layout.buildDirectory.dir("generated/sources/buildinfo").get().asFile
     outputs.dir(outputDir)
+    // force to run everytime
     outputs.upToDateWhen { false }
     doLast {
-        // force to run everytime
-//        if (outputDir.exists()) {
-//            outputDir.deleteDir()
-//        }
+/*        if (outputDir.exists()) {
+            outputDir.deleteDir()
+        }*/
         def pkg = "net.rtxyd.fallen.lib.config"
         def dir = new File(outputDir, pkg.replace('.', '/'))
         dir.mkdirs()
@@ -269,11 +269,44 @@ tasks.register("generateBuildInfo") {
     }
 }
 
+// experimental
+tasks.register("generateMetaData") {
+    def outputDir = layout.buildDirectory.dir("generated/sources/runtime").get().asFile
+    outputs.dir(outputDir)
+    outputs.upToDateWhen { false }
+    doLast {
+        // force to run everytime
+        def path = "META-INF/runtime"
+        def dir = new File(outputDir, path)
+        dir.mkdirs()
+
+        new File(dir, "metadata.json").text = """{
+  "jars": [
+    {
+      "identifier": {
+        "group": "net.rtxyd.fallen.lib",
+        "artifact": "fallen-lib"
+      },
+      "version": {
+        "range": "[1.2.0,)",
+        "artifactVersion": "1.3.1"
+      },
+      "path": "META-INF/runtime/fallen_lib-1.3.1-runtime.jar",
+      "isObfuscated": true
+    }
+  ]
+}""".stripIndent()
+    }
+}
+
 sourceSets.main.java.srcDir(
         layout.buildDirectory.dir("generated/sources/buildinfo")
 )
-
+//sourceSets.main.resources.srcDir(
+//        layout.buildDirectory.dir("generated/sources/runtime")
+//)
 compileJava.dependsOn("generateBuildInfo")
+//processResources.dependsOn("generateMetaData")
 
 tasks.register('jarCoreLib', Jar) {
     from(zipTree(tasks.jar.outputs.files.singleFile))
