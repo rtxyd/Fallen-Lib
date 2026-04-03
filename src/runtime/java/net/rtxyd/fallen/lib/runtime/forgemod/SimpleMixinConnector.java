@@ -10,11 +10,19 @@ import java.util.List;
 public class SimpleMixinConnector implements IMixinConnector {
     @Override
     public void connect() {
+        connectSelf();
+        connectRegistry();
+    }
+
+    private void connectSelf() {
         boolean isApothExist = getClass().getClassLoader().getResource("dev/shadowsoffire/apotheosis/Apotheosis.class") != null;
+        boolean isAttributeLibExist = getClass().getClassLoader().getResource("dev/shadowsoffire/attributeslib/AttributesLib.class") != null;
         if (isApothExist) {
             Mixins.addConfiguration(FallenLib.MODID + ".mixins.json");
         }
-        connectRegistry();
+        if (isAttributeLibExist) {
+            Mixins.addConfiguration(FallenLib.MODID + ".attrlib.mixins.json");
+        }
     }
 
     private void connectRegistry() {

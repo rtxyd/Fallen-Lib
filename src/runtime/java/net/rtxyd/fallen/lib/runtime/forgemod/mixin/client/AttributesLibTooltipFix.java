@@ -1,0 +1,41 @@
+package net.rtxyd.fallen.lib.runtime.forgemod.mixin.client;
+
+import dev.shadowsoffire.attributeslib.client.AttributesLibClient;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+
+@Mixin(AttributesLibClient.class)
+@OnlyIn(Dist.CLIENT)
+public class AttributesLibTooltipFix {
+    @Unique
+    private static boolean FL$shouldNeg = false;
+    @ModifyArg(method = "applyTextFor",
+            at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/network/chat/TextColor;fromRgb(I)Lnet/minecraft/network/chat/TextColor;"
+    ))
+    private static int checkColor(int pColor){
+        if (pColor == 0xF93131) {
+            FL$shouldNeg = true;
+        }
+        return pColor;
+    }
+
+    @ModifyArg(
+            method = "applyTextFor",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/ai/attributes/AttributeModifier;<init>(Ljava/util/UUID;Ljava/util/function/Supplier;DLnet/minecraft/world/entity/ai/attributes/AttributeModifier$Operation;)V"
+            ),
+            index = 2
+    )
+    private static double fixNeg(double value) {
+        double value1 = FL$shouldNeg ? -value : value;
+        FL$shouldNeg = false;
+        return value1;
+    }
+}
