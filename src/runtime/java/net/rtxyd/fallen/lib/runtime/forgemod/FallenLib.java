@@ -28,7 +28,12 @@ public class FallenLib {
 
     public void init(FMLCommonSetupEvent e) {
         e.enqueueWork(() -> {
-            ExtraGemBonusRegistry.INSTANCE.registerToBus();
+            try {
+                ExtraGemBonusRegistry.INSTANCE.registerToBus();
+            } catch (Exception ex) {
+                FallenLib.LOGGER.error("Failed registering extra_gem_bonuses, is there another mod already registered it?");
+                ex.printStackTrace();
+            }
         });
     }
 }

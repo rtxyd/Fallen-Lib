@@ -34,8 +34,9 @@ public class AttributesLibTooltipFix {
             index = 2
     )
     private static double fixNeg(double value) {
-        double value1 = FL$shouldNeg ? -value : value;
-        FL$shouldNeg = false;
-        return value1;
+        if (FL$shouldNeg) {
+            return value < 0 ? value : -value;
+        }
+        return value;
     }
 }
