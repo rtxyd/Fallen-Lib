@@ -43,6 +43,7 @@ public class GemMixin implements GemBonusExtension {
 
     @Override
     public void fallen_lib$clearExtraBonuses() {
+        bonusMap.entrySet().removeIf(entry -> fallen_lib$extraBonuses.contains(entry.getValue()));
         this.fallen_lib$extraBonuses.clear();
     }
 
