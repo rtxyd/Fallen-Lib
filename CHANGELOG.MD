@@ -2,6 +2,19 @@
 
 ## 1.3
 ---
+### 1.3.4
+## Runtime.forgemod
+- Crude SyncableRegistry, with network handler (now it's poor version of `DynamicRegistry` in Placebo)
+- Simple 1.21.1 like Connection for network
+
+### 1.3.3
+## Core
+- Mod locator tweak
+## Runtime.forgemod
+- Special check for FGA version compat
+- Attrlib fix port
+- Lootcategory `forItem()` fix
+
 ### 1.3.2
 - Implement a simple delegating mixin connector registry
 - Add empty checks for fallen config json file
