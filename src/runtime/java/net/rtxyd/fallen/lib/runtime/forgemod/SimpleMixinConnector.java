@@ -5,7 +5,6 @@ import net.minecraftforge.fml.loading.moddiscovery.ModInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.rtxyd.fallen.lib.extra.mixin.FallenMixinConnectorRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.compat.fga.FGALegacyCheck;
-import net.rtxyd.fallen.lib.runtime.forgemod.compat.fga.FGAVersionStage;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.Restriction;
 import org.spongepowered.asm.mixin.Mixins;

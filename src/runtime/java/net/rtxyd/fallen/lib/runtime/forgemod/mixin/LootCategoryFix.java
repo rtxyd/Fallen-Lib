@@ -14,25 +14,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = LootCategory.class, remap = false)
 public class LootCategoryFix {
     @Unique
-    private static final ThreadLocal<ItemStack> FGA$lastItem = ThreadLocal.withInitial(() -> ItemStack.EMPTY);
+    private static final ThreadLocal<ItemStack> fallen_lib$lastItem = ThreadLocal.withInitial(() -> ItemStack.EMPTY);
     @Unique
-    private static final ThreadLocal<Boolean> FGA$recurseMark = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Boolean> fallen_lib$recurseMark = ThreadLocal.withInitial(() -> false);
     @Inject(method = "forItem", at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;"), cancellable = true)
     private static void forItemGuardA(ItemStack item, CallbackInfoReturnable<LootCategory> cir) {
-        if (FGA$recurseMark.get() && FGA$lastItem.get() == item) {
+        if (fallen_lib$recurseMark.get() && fallen_lib$lastItem.get() == item) {
             LootCategory cat = AdventureConfig.TYPE_OVERRIDES.putIfAbsent(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.NONE);
             if (cat == null) {
                 FallenLib.LOGGER.error("Detected recursion when invoke forItem() for {}, fallback LootCategory.NONE.", item.getItem());
             }
             cir.setReturnValue(LootCategory.NONE);
         }
-        FGA$lastItem.set(item);
-        FGA$recurseMark.set(true);
+        fallen_lib$lastItem.set(item);
+        fallen_lib$recurseMark.set(true);
     }
 
     @Inject(method = "forItem", at = @At("RETURN"))
     private static void forItemGuardB(ItemStack item, CallbackInfoReturnable<LootCategory> cir) {
-        FGA$lastItem.set(ItemStack.EMPTY);
-        FGA$recurseMark.set(false);
+        fallen_lib$lastItem.set(ItemStack.EMPTY);
+        fallen_lib$recurseMark.set(false);
     }
 }

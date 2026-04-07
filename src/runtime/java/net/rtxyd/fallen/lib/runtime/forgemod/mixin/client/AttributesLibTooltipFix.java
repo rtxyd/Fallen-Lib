@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 @OnlyIn(Dist.CLIENT)
 public class AttributesLibTooltipFix {
     @Unique
-    private static boolean FL$shouldNeg = false;
+    private static boolean fallen_lib$shouldNeg = false;
     @ModifyArg(method = "applyTextFor",
             at = @At(
             value = "INVOKE",
@@ -20,7 +20,7 @@ public class AttributesLibTooltipFix {
     ))
     private static int checkColor(int pColor){
         if (pColor == 0xF93131) {
-            FL$shouldNeg = true;
+            fallen_lib$shouldNeg = true;
         }
         return pColor;
     }
@@ -34,7 +34,7 @@ public class AttributesLibTooltipFix {
             index = 2
     )
     private static double fixNeg(double value) {
-        if (FL$shouldNeg) {
+        if (fallen_lib$shouldNeg) {
             return value < 0 ? value : -value;
         }
         return value;
