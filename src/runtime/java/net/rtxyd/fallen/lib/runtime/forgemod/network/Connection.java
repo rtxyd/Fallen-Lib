@@ -70,8 +70,13 @@ public class Connection {
         singleton.registerSync();
     }
 
-    public void registerSingleEntryPacketPayload() {
-
+    public static <ENTRY, PROCESS extends AbstractSingleEntryPacketPayLoad<ENTRY>> void registerSingleEntryPacketPayload(
+            Class<PROCESS> process, NetworkDirection direction,
+            FriendlyByteBufCodec<PROCESS> codec, BiConsumer<PROCESS, Supplier<NetworkEvent.Context>> handler) {
+        INSTANCE.messageBuilder(process, id(), direction)
+                .encoder(codec::encode)
+                .decoder(codec::decode)
+                .consumerMainThread(handler).add();
     }
 
     public static final Function<FriendlyByteBuf, ?> nullDecoder = t -> null;

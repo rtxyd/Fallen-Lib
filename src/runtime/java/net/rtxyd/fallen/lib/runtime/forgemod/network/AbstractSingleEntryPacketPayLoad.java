@@ -25,7 +25,7 @@ public abstract class AbstractSingleEntryPacketPayLoad<ENTRY> implements IVanill
 
     public static <ORIGIN extends AbstractSingleEntryPacketPayLoad<ENTRY>, ENTRY> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
             Codec<ENTRY> entryCodec,
-            Function<ENTRY , ORIGIN> constructor
+            Function<ENTRY, ORIGIN> constructor
     ) {
         return new FriendlyByteBufCodec<>() {
             @Override
