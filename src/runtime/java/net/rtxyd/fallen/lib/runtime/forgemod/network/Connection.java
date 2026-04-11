@@ -3,8 +3,6 @@ package net.rtxyd.fallen.lib.runtime.forgemod.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
@@ -35,26 +33,28 @@ public class Connection {
     }
 
     public static void register() {
-        registerRegistryBoundPacketPayLoads(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
+        registerRegistryBoundPacketPayloads(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
                 ClientBoundSyncExtraGemBonusesPacket.Begin.class,   ClientBoundSyncExtraGemBonusesPacket.Begin::new,    ClientBoundSyncExtraGemBonusesPacket.Begin::handle,
                 ClientBoundSyncExtraGemBonusesPacket.class,         ClientBoundSyncExtraGemBonusesPacket::new,          ClientBoundSyncExtraGemBonusesPacket::handle,
                 ClientBoundSyncExtraGemBonusesPacket.End.class,     ClientBoundSyncExtraGemBonusesPacket.End::new,      ClientBoundSyncExtraGemBonusesPacket.End::handle);
     }
 
     public static <REGISTRY_ITEM,
-            BEGIN extends AbstractRegistryBoundPacketPayLoad.IBegin<PROCESS>,
-            PROCESS extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>,
-            END extends AbstractRegistryBoundPacketPayLoad.IEnd<PROCESS>,
+            BEGIN extends AbstractRegistryBoundPacketPayload.IBegin<PROCESS>,
+            PROCESS extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>,
+            END extends AbstractRegistryBoundPacketPayload.IEnd<PROCESS>,
             REGISTRY extends AbstractPacketBoundRegistry<REGISTRY_ITEM, BEGIN, PROCESS, END>>
-    void registerRegistryBoundPacketPayLoads(REGISTRY singleton, FriendlyByteBufCodec<PROCESS> codec,
+    void registerRegistryBoundPacketPayloads(REGISTRY singleton, FriendlyByteBufCodec<PROCESS> codec,
                                              Class<BEGIN> begin, Supplier<BEGIN> beginConstructor, BiConsumer<BEGIN, Supplier<NetworkEvent.Context>> beginHandler,
                                              Class<PROCESS> process, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, BiConsumer<PROCESS, Supplier<NetworkEvent.Context>> processHandler,
                                              Class<END> end, Supplier<END> endConstructor, BiConsumer<END, Supplier<NetworkEvent.Context>> endHandler) {
         if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
 
+        singleton.registerCommon();
+
         INSTANCE.messageBuilder(begin, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(nullEncoderAuto())
-                .decoder(nullDecoderAuto())
+                .decoder(t -> beginConstructor.get())
                 .consumerMainThread(beginHandler).add();
         INSTANCE.messageBuilder(process, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(codec::encode)
@@ -62,13 +62,16 @@ public class Connection {
                 .consumerMainThread(processHandler).add();
         INSTANCE.messageBuilder(end, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(nullEncoderAuto())
-                .decoder(nullDecoderAuto())
+                .decoder(t -> endConstructor.get())
                 .consumerMainThread(endHandler).add();
         singleton.initConstructors(new IPacketBoundRegistry.Constructors3<>(beginConstructor, processConstructor, endConstructor));
         AbstractPacketBoundRegistry.registerSingleton(singleton);
-        AbstractRegistryBoundPacketPayLoad.boundRegistrySingleton(process, singleton);
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, singleton::onAddReloadListeners);
+        AbstractRegistryBoundPacketPayload.boundRegistrySingleton(process, singleton);
         singleton.registerSync();
+    }
+
+    public void registerSingleEntryPacketPayload() {
+
     }
 
     public static final Function<FriendlyByteBuf, ?> nullDecoder = t -> null;

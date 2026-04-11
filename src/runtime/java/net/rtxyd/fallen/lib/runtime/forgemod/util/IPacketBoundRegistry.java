@@ -3,9 +3,8 @@ package net.rtxyd.fallen.lib.runtime.forgemod.util;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.event.OnDatapackSyncEvent;
 import net.minecraftforge.network.NetworkEvent;
-import net.rtxyd.fallen.lib.runtime.forgemod.network.AbstractRegistryBoundPacketPayLoad;
+import net.rtxyd.fallen.lib.runtime.forgemod.network.AbstractRegistryBoundPacketPayload;
 
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -31,7 +30,7 @@ public interface IPacketBoundRegistry<REGISTRY_ITEM> {
     void applyTemp();
 
     public static record Constructors3<REGISTRY_ITEM,
-    BEGIN extends AbstractRegistryBoundPacketPayLoad.IBegin<PROCESS>,
-    PROCESS extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>,
-    END extends AbstractRegistryBoundPacketPayLoad.IEnd<PROCESS>>(Supplier<BEGIN> beginConstructor, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, Supplier<END> endConstructor) {}
+    BEGIN extends AbstractRegistryBoundPacketPayload.IBegin<PROCESS>,
+    PROCESS extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>,
+    END extends AbstractRegistryBoundPacketPayload.IEnd<PROCESS>>(Supplier<BEGIN> beginConstructor, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, Supplier<END> endConstructor) {}
 }

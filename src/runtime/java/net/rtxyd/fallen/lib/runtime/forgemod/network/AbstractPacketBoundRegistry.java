@@ -18,11 +18,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.crafting.conditions.ICondition;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.OnDatapackSyncEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.ExtraGemBonusRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.IPacketBoundRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.Serialization;
@@ -33,9 +33,9 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public abstract class AbstractPacketBoundRegistry<REGISTRY_ITEM,
-        BEGIN extends AbstractRegistryBoundPacketPayLoad.IBegin<PROCESS>,
-        PROCESS extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>,
-        END extends AbstractRegistryBoundPacketPayLoad.IEnd<PROCESS>>
+        BEGIN extends AbstractRegistryBoundPacketPayload.IBegin<PROCESS>,
+        PROCESS extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>,
+        END extends AbstractRegistryBoundPacketPayload.IEnd<PROCESS>>
         extends SimpleJsonResourceReloadListener implements IPacketBoundRegistry<REGISTRY_ITEM>, ICodecProvider<REGISTRY_ITEM> {
 
     protected final String path;
@@ -67,6 +67,10 @@ public abstract class AbstractPacketBoundRegistry<REGISTRY_ITEM,
         event.addListener(this);
         if (this.context != null) return;
         this.context = event.getConditionContext();
+    }
+
+    final void registerCommon() {
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
     }
 
     final void registerSync() {
@@ -113,7 +117,7 @@ public abstract class AbstractPacketBoundRegistry<REGISTRY_ITEM,
     }
 
     @SuppressWarnings("unchecked")
-    public static <A, B extends AbstractRegistryBoundPacketPayLoad.IBegin<C>, C extends AbstractRegistryBoundPacketPayLoad<A>, D extends AbstractRegistryBoundPacketPayLoad.IEnd<C>>
+    public static <A, B extends AbstractRegistryBoundPacketPayload.IBegin<C>, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd<C>>
     AbstractPacketBoundRegistry<A, B, C, D> getSingleton(Class<? extends AbstractPacketBoundRegistry<A, B, C, D>> registryClass) {
         return (AbstractPacketBoundRegistry<A, B, C, D>) SINGLETONS.get(registryClass);
     }

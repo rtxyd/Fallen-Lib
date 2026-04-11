@@ -39,19 +39,10 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
 
     public static final ExtraGemBonusRegistry INSTANCE = new ExtraGemBonusRegistry("extra_gem_bonuses");
 
-    protected final String path;
-
-    protected ICondition.IContext context;
-
-    protected BiMap<ResourceLocation, ExtraGemBonus> registry = HashBiMap.create();
-
-    protected Map<ResourceLocation, ExtraGemBonus> temp = new HashMap<>();
-
     protected Multimap<DynamicHolder<Gem>, ExtraGemBonus> extraBonuses = HashMultimap.create();
 
     public ExtraGemBonusRegistry(String path) {
         super(new Gson(), path);
-        this.path = path;
     }
 
     @Override

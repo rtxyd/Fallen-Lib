@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
@@ -15,13 +16,13 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public abstract class AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM> implements IVanillaLikeCustomPacketPayload {
+public abstract class AbstractRegistryBoundPacketPayload<REGISTRY_ITEM> implements IVanillaLikeCustomPacketPayload {
     private final ResourceLocation path;
     private final REGISTRY_ITEM registryItem;
     @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends AbstractRegistryBoundPacketPayLoad>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
+    private static final Map<Class<? extends AbstractRegistryBoundPacketPayload>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
 
-    protected AbstractRegistryBoundPacketPayLoad(ResourceLocation path, REGISTRY_ITEM registryItem) {
+    protected AbstractRegistryBoundPacketPayload(ResourceLocation path, REGISTRY_ITEM registryItem) {
         this.path = path;
         this.registryItem = registryItem;
     }
@@ -48,22 +49,22 @@ public abstract class AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM> implemen
     }
 
     @SuppressWarnings("unchecked")
-    public final Class<? extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>> getClassAuto() {
-        return (Class<? extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>>) this.getClass();
+    public final Class<? extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>> getClassAuto() {
+        return (Class<? extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>>) this.getClass();
     }
 
-    static <A, B extends AbstractRegistryBoundPacketPayLoad.IBegin<C>, C extends AbstractRegistryBoundPacketPayLoad<A>, D extends AbstractRegistryBoundPacketPayLoad.IEnd<C>>
-    void boundRegistrySingleton(Class<? extends AbstractRegistryBoundPacketPayLoad<A>> packetClass, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
+    static <A, B extends AbstractRegistryBoundPacketPayload.IBegin<C>, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd<C>>
+    void boundRegistrySingleton(Class<? extends AbstractRegistryBoundPacketPayload<A>> packetClass, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
         REGISTRY_SINGLETONS.computeIfAbsent(packetClass, k -> instance);
     }
 
     @SuppressWarnings("unchecked")
-    public static <A, B extends AbstractRegistryBoundPacketPayLoad.IBegin<C>, C extends AbstractRegistryBoundPacketPayLoad<A>, D extends AbstractRegistryBoundPacketPayLoad.IEnd<C>>
-    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<? extends AbstractRegistryBoundPacketPayLoad<A>> registryClass) {
+    public static <A, B extends AbstractRegistryBoundPacketPayload.IBegin<C>, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd<C>>
+    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<C> registryClass) {
         return (AbstractPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryClass);
     }
 
-    public static <ORIGIN extends AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM>, REGISTRY_ITEM> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
+    public static <ORIGIN extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>, REGISTRY_ITEM> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
             Codec<REGISTRY_ITEM> itemCodec,
             BiFunction<ResourceLocation, REGISTRY_ITEM , ORIGIN> constructor
     ) {
@@ -85,18 +86,32 @@ public abstract class AbstractRegistryBoundPacketPayLoad<REGISTRY_ITEM> implemen
             }
         };
     }
-    @SuppressWarnings("rawtypes")
-    public static interface IBegin<T extends AbstractRegistryBoundPacketPayLoad> {
+
+    public static interface IBegin<T extends AbstractRegistryBoundPacketPayload<?>> extends IVanillaLikeCustomPacketPayload {
         Class<T> getProcessClass();
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        static <T extends AbstractRegistryBoundPacketPayload<?>> Class<T> getProcessClassAuto(IBegin inst) {
+            return (Class<T>) inst.getProcessClass();
+        }
+
+        @Override
         default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(ClientBoundSyncExtraGemBonusesPacket.class).handleBegin(contextSupplier);
+            getBoundRegistry(getProcessClassAuto(this)).handleBegin(contextSupplier);
         }
     }
-    @SuppressWarnings("rawtypes")
-    public static interface IEnd<T extends AbstractRegistryBoundPacketPayLoad> {
+
+    public static interface IEnd<T extends AbstractRegistryBoundPacketPayload<?>> extends IVanillaLikeCustomPacketPayload {
         Class<T> getProcessClass();
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        static <T extends AbstractRegistryBoundPacketPayload<?>> Class<T> getProcessClassAuto(IEnd inst) {
+            return (Class<T>) inst.getProcessClass();
+        }
+
+        @Override
         default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(ClientBoundSyncExtraGemBonusesPacket.class).handleEnd(contextSupplier);
+            getBoundRegistry(getProcessClassAuto(this)).handleEnd(contextSupplier);
         }
     }
 }
