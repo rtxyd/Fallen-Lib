@@ -13,15 +13,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.*;
 
 public class PatchUtil {
     static final Logger LOGGER = LoggerFactory.getLogger("fallen.util");
-    public static final String STANDARD_METHOD = """
-                public static Object hook(IInserterContext<Object, Object> ctx, Object... args) {
-                    return ctx.ret();
-                }
-            """;
+    public static final String STANDARD_METHOD = "public static Object hook(IInserterContext<Object, Object> ctx, Object... args)";
 
     public static ClassNode cloneClassNode(ClassNode original) {
         ClassWriter cw = new ClassWriter(0);
@@ -242,50 +239,41 @@ public class PatchUtil {
         }
     }
 
-    public static MethodInsnNode buildMethodInsnNodeWith(InserterType type, String fullClassName, String methodName) {
-        if (type == InserterType.STANDARD) {
-            return new MethodInsnNode(Opcodes.INVOKESTATIC,
-                    fullClassName.replace(".", "/"),
-                    methodName,
-                    InserterType.STANDARD.desc());
-        } else if (type == InserterType.STANDARD_VOID) {
-            return new MethodInsnNode(Opcodes.INVOKESTATIC,
-                    fullClassName.replace(".", "/"),
-                    methodName,
-                    InserterType.STANDARD_VOID.desc());
-        }
-        return null;
-    }
-
     public static void insertMethodHook(ClassNode classNode,
                                         MethodNode methodNode,
                                         Predicate<? super AbstractInsnNode> filter,
-                                        InserterType type,
-                                        MethodInsnNode hookMethod,
-                                        boolean replaceReturn,
-                                        boolean debugMode) {
+                                        InserterMethodData methodData) {
+        var type = methodData.getType();
         switch (type) {
-            case STANDARD, STANDARD_VOID -> insertStandardMethodHook(classNode, methodNode, filter::test, hookMethod, replaceReturn, debugMode);
+            case STANDARD -> insertStandardMethodHook(classNode, methodNode, filter::test, methodData);
+//            case STANDARD_VOID -> insertStandardMethodHook(classNode, methodNode, filter::test, methodData, true);
+//            case BEFORE_CANCELLABLE -> insertBeforeCancellableMethodHook(classNode, methodNode, filter::test, hookMethod, replaceReturn, debugMode);
+            case BEFORE_MODIFY_ARG -> insertBeforeModifyArgMethodHook(classNode, methodNode, filter::test, methodData);
         }
     }
 
-    public static void insertStandardMethodHook(ClassNode classNode,
-                                        MethodNode methodNode,
-                                        Predicate<MethodInsnNode> filter,
-                                        MethodInsnNode hookMethod,
-                                        boolean replaceReturn,
-                                        boolean debugMode) {
+    private static boolean checkDesc(MethodInsnNode hookMethod, InserterType type) {
+        if (!hookMethod.desc.startsWith(InserterType.standardStarter())) {
+            LOGGER.debug("Inserter {} is not standard form! Expect: (descriptor)\n {}", hookMethod.owner + "." + hookMethod.name + hookMethod.desc, type.getExpected());
+            return false;
+        }
+        return true;
+    }
+    private static boolean checkOpcode(MethodInsnNode hookMethod) {
+        if (hookMethod.getOpcode() != Opcodes.INVOKESTATIC) {
+            LOGGER.debug("Inserter {} is not standard form! Expect: (static)\n", hookMethod.owner + "." + hookMethod.name + hookMethod.desc);
+            return false;
+        }
+        return true;
+    }
+
+    private static void insertBeforeModifyArgMethodHook(ClassNode classNode, MethodNode methodNode, Predicate<MethodInsnNode> filter, InserterMethodData methodData) {
         InsnList insns = methodNode.instructions;
         // to check if init, or if is after super ctor
         boolean shouldCheck = methodNode.name.equals("<init>");
-        if (!hookMethod.desc.startsWith(InserterType.standardStarter())) {
-            LOGGER.debug("Inserter {} is not standard form! Expect: (descriptor)\n {}", hookMethod.owner + "." + hookMethod.name, STANDARD_METHOD);
-            return;
-        }
-        if (hookMethod.getOpcode() != Opcodes.INVOKESTATIC) {
-            LOGGER.debug("Inserter {} is not standard form ! Expect: (static)\n {}", hookMethod.owner + "." + hookMethod.name, STANDARD_METHOD);
-            return;
-        }
+        MethodInsnNode hookMethod = methodData.getInserterMethod();
+        if (!checkDesc(hookMethod, InserterType.BEFORE_MODIFY_ARG)) return;
+        if (!checkOpcode(hookMethod)) return;
         for (AbstractInsnNode insn = insns.getFirst(); insn != null; insn = insn.getNext()) {
             if (!(insn instanceof MethodInsnNode call)) continue;
             if (!filter.test(call)) continue;
@@ -293,7 +281,31 @@ public class PatchUtil {
                 shouldCheck = false;
                 continue;
             }
-            insn = StablePatchUtilV2.insertMethodHookStandard(methodNode, call, hookMethod, replaceReturn, debugMode);
+            insn = StablePatchUtilV2.insertMethodHookBeforeModifyArg(methodNode, call, methodData);
+        }
+    }
+
+    private static void insertStandardMethodHook(ClassNode classNode,
+                                        MethodNode methodNode,
+                                        Predicate<MethodInsnNode> filter,
+                                        InserterMethodData methodData) {
+        InsnList insns = methodNode.instructions;
+        // to check if init, or if is after super ctor
+        MethodInsnNode hookMethod = methodData.getInserterMethod();
+        boolean shouldCheck = methodNode.name.equals("<init>");
+        if (!hookMethod.desc.startsWith(InserterType.standardStarter())) {
+            LOGGER.debug("Inserter {} is not standard form! Expect: \n {}", hookMethod.owner + "." + hookMethod.name, InserterType.Expected.EXPECTED_STANDARD);
+            return;
+        }
+        if (!checkOpcode(hookMethod)) return;
+        for (AbstractInsnNode insn = insns.getFirst(); insn != null; insn = insn.getNext()) {
+            if (!(insn instanceof MethodInsnNode call)) continue;
+            if (!filter.test(call)) continue;
+            if (shouldCheck && call.owner.equals(classNode.superName)) {
+                shouldCheck = false;
+                continue;
+            }
+            insn = StablePatchUtilV2.insertMethodHookStandard(methodNode, call, methodData);
         }
     }
 
@@ -343,5 +355,242 @@ public class PatchUtil {
             }
         }
         return insnNodeList;
+    }
+
+    /**
+     * Call this method only if sourceDesc is not void
+     * @param instructions list to insert
+     * @param sourceDesc from
+     * @param targetDesc to
+     */
+    public static void replaceWithTypeAdaptation(InsnList instructions,
+                                                 String sourceDesc,
+                                                 String targetDesc) {
+        if (sourceDesc.equals(targetDesc)) {
+            return;
+        }
+
+        InsnList converters = new InsnList();
+
+        adaptType(converters, sourceDesc, targetDesc);
+
+        instructions.add(converters);
+    }
+
+    private static void adaptType(InsnList list, String sourceDesc, String targetDesc) {
+        if ("V".equals(targetDesc)) {
+            popValue(list, sourceDesc);
+            return;
+        }
+
+        boolean srcPrim = isPrimitive(sourceDesc);
+        boolean tgtPrim = isPrimitive(targetDesc);
+
+        if (!srcPrim && !tgtPrim) {
+            if (!sourceDesc.equals(targetDesc)) {
+                String internalName = targetDesc.substring(1, targetDesc.length() - 1);
+                list.add(new TypeInsnNode(Opcodes.CHECKCAST, internalName));
+            }
+            return;
+        }
+
+        if (!srcPrim && tgtPrim) {
+            unboxToPrimitive(list, targetDesc);
+            return;
+        }
+
+        if (srcPrim && !tgtPrim) {
+            boxPrimitive(list, sourceDesc, targetDesc);
+            return;
+        }
+
+        convertPrimitive(list, sourceDesc, targetDesc);
+    }
+
+    public static boolean isPrimitive(String desc) {
+        return desc.length() == 1;
+    }
+
+    public static boolean isPrimitiveA(Type type) {
+        return type.getSort() != Type.OBJECT && type.getSort() != Type.ARRAY;
+    }
+
+    public static void popValue(InsnList list, String desc) {
+        if (isDoubleSlot(desc)) {
+            list.add(new InsnNode(Opcodes.POP2));
+        } else {
+            list.add(new InsnNode(Opcodes.POP));
+        }
+    }
+
+    public static boolean isDoubleSlot(String desc) {
+        return "J".equals(desc) || "D".equals(desc);
+    }
+
+    public static void unboxToPrimitive(InsnList list, String targetDesc) {
+        if (isNumericPrimitive(targetDesc)) {
+            unboxNumberToPrimitive(list, targetDesc);
+        } else {
+            unboxExactWrapper(list, targetDesc);
+        }
+    }
+
+    private static boolean isNumericPrimitive(String desc) {
+        return "I".equals(desc) || "J".equals(desc) || "F".equals(desc) || "D".equals(desc)
+                || "B".equals(desc) || "S".equals(desc);
+    }
+
+    private static void unboxNumberToPrimitive(InsnList list, String targetDesc) {
+        list.add(new TypeInsnNode(Opcodes.CHECKCAST, "java/lang/Number"));
+
+        String methodName;
+        String methodDesc;
+        switch (targetDesc) {
+            case "I":
+                methodName = "intValue";
+                methodDesc = "()I";
+                break;
+            case "J":
+                methodName = "longValue";
+                methodDesc = "()J";
+                break;
+            case "F":
+                methodName = "floatValue";
+                methodDesc = "()F";
+                break;
+            case "D":
+                methodName = "doubleValue";
+                methodDesc = "()D";
+                break;
+            case "B":
+                // byte: intValue -> I2B
+                methodName = "intValue";
+                methodDesc = "()I";
+                break;
+            case "S":
+                // short: intValue -> I2S
+                methodName = "intValue";
+                methodDesc = "()I";
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported numeric primitive: " + targetDesc);
+        }
+
+        list.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/Number", methodName, methodDesc, false));
+
+        if ("B".equals(targetDesc)) {
+            list.add(new InsnNode(Opcodes.I2B));
+        } else if ("S".equals(targetDesc)) {
+            list.add(new InsnNode(Opcodes.I2S));
+        }
+    }
+
+    private static void unboxExactWrapper(InsnList list, String targetDesc) {
+        String wrapper = getWrapperInternalName(targetDesc);
+        list.add(new TypeInsnNode(Opcodes.CHECKCAST, wrapper));
+
+        String unboxMethod = getUnboxMethodName(targetDesc);
+        String unboxDesc = "()" + targetDesc;
+        list.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, wrapper, unboxMethod, unboxDesc, false));
+    }
+
+    public static String getWrapperInternalName(String primitiveDesc) {
+        switch (primitiveDesc) {
+            case "Z": return "java/lang/Boolean";
+            case "B": return "java/lang/Byte";
+            case "C": return "java/lang/Character";
+            case "S": return "java/lang/Short";
+            case "I": return "java/lang/Integer";
+            case "J": return "java/lang/Long";
+            case "F": return "java/lang/Float";
+            case "D": return "java/lang/Double";
+            default: throw new IllegalArgumentException("Not primitive: " + primitiveDesc);
+        }
+    }
+
+    public static String getUnboxMethodName(String primitiveDesc) {
+        switch (primitiveDesc) {
+            case "Z": return "booleanValue";
+            case "B": return "byteValue";
+            case "C": return "charValue";
+            case "S": return "shortValue";
+            case "I": return "intValue";
+            case "J": return "longValue";
+            case "F": return "floatValue";
+            case "D": return "doubleValue";
+            default: throw new IllegalArgumentException("Not primitive: " + primitiveDesc);
+        }
+    }
+
+    public static void boxPrimitive(InsnList list, String sourceDesc, String targetDesc) {
+        String wrapper = getWrapperInternalName(sourceDesc);
+        String boxMethod = "valueOf";
+        String boxDesc = "(" + sourceDesc + ")L" + wrapper + ";";
+
+        list.add(new MethodInsnNode(Opcodes.INVOKESTATIC, wrapper, boxMethod, boxDesc, false));
+
+        if (!targetDesc.equals("L" + wrapper + ";")) {
+            if (targetDesc.equals("Ljava/lang/Number;") || targetDesc.equals("Ljava/lang/Object;")) {
+            } else {
+                String internal = targetDesc.substring(1, targetDesc.length() - 1);
+                list.add(new TypeInsnNode(Opcodes.CHECKCAST, internal));
+            }
+        }
+    }
+
+    public static String culpritHookMethod(MethodInsnNode method) {
+        return String.format("Culprit: [ %s ]", method.owner.replace("/", ".") + "." + method.name + method.desc);
+    }
+
+    public static void convertPrimitive(InsnList list, String from, String to) {
+        if (from.equals(to)) return;
+
+        int opcode = getConversionOpcode(from, to);
+        if (opcode != -1) {
+            list.add(new InsnNode(opcode));
+        } else {
+            throw new IllegalArgumentException("Cannot convert " + from + " to " + to);
+        }
+    }
+
+    public static int getConversionOpcode(String from, String to) {
+        switch (from + "->" + to) {
+            // int
+            case "I->F":
+                return Opcodes.I2F;
+            case "I->D":
+                return Opcodes.I2D;
+            case "I->J":
+                return Opcodes.I2L;
+            case "I->B":
+                return Opcodes.I2B;
+            case "I->C":
+                return Opcodes.I2C;
+            case "I->S":
+                return Opcodes.I2S;
+            // long
+            case "J->F":
+                return Opcodes.L2F;
+            case "J->D":
+                return Opcodes.L2D;
+            case "J->I":
+                return Opcodes.L2I;
+            // float
+            case "F->D":
+                return Opcodes.F2D;
+            case "F->I":
+                return Opcodes.F2I;
+            case "F->J":
+                return Opcodes.F2L;
+            // double
+            case "D->F":
+                return Opcodes.D2F;
+            case "D->I":
+                return Opcodes.D2I;
+            case "D->J":
+                return Opcodes.D2L;
+            default:
+                return -1;
+        }
     }
 }

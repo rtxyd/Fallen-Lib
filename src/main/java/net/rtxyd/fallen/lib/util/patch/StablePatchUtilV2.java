@@ -8,9 +8,10 @@ import org.objectweb.asm.tree.MethodNode;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class StablePatchUtilV2 {
-    private static final Map<AbstractInsnNode, InserterMeta> inserterMetaCache = new HashMap<>();
+    private static Map<AbstractInsnNode, InserterMeta> inserterMetaCache = new HashMap<>();
     // method version 1.1
     private static boolean validate(MethodInsnNode exactTarget, MethodInsnNode hookMethod) {
         if (!hookMethod.desc.startsWith(InserterType.standardStarter())) {
@@ -25,19 +26,18 @@ public class StablePatchUtilV2 {
         return true;
     }
 
-    // method version 1.1
+    // method version 1.2
     public static AbstractInsnNode insertMethodHookStandard(MethodNode methodNode,
                                                             MethodInsnNode exactTarget,
-                                                            MethodInsnNode hookMethod,
-                                                            boolean replaceReturn,
-                                                            boolean debugMode) {
+                                                            InserterMethodData data) {
 
-        if (!validate(exactTarget, hookMethod)) {
+        var options = data.getPatchOptions();
+        if (!validate(exactTarget, data.getInserterMethod())) {
             return exactTarget;
         }
         int maxLocalsCache = methodNode.maxLocals;
 
-        StandardInserterHelper ih = new StandardInserterHelper(methodNode, exactTarget, hookMethod, replaceReturn, debugMode);
+        StandardInserterHelper ih = new StandardInserterHelper(methodNode, exactTarget, data.getInserterMethod(), data.getLoadOuterArgsOrdinal(), options);
         InserterMeta meta = inserterMetaCache.get(exactTarget);
         if (meta != null) {
             return ih.runAndNavigateWithCache(meta, true);
@@ -45,7 +45,7 @@ public class StablePatchUtilV2 {
 
         AbstractInsnNode last = ih.runAndNavigate();
         InserterMeta meta1 = new InserterMeta(last, methodNode, maxLocalsCache, ih.getParamSlots(), ih.getReceiverSlot(), ih.getReturnSlot(), ih.stackHasReturn());
-        if (debugMode) {
+        if (options.contains(PatchOption.DEBUG_MODE)) {
             meta1.couldDebug = false;
         }
         inserterMetaCache.put(exactTarget, meta1);
@@ -58,5 +58,31 @@ public class StablePatchUtilV2 {
         } else {
             throw new IllegalAccessException("Unexpected: current class is not end!");
         }
+    }
+
+    // method version 1.0
+    public static AbstractInsnNode insertMethodHookBeforeModifyArg(MethodNode methodNode,
+                                                                   MethodInsnNode exactTarget,
+                                                                   InserterMethodData data) {
+        MethodInsnNode hookMethod = data.getInserterMethod();
+        var options = data.getPatchOptions();
+        if (!validate(exactTarget, hookMethod)) {
+            return exactTarget;
+        }
+        int maxLocalsCache = methodNode.maxLocals;
+
+        BeforeModifyArgInserterHelper ih = new BeforeModifyArgInserterHelper(methodNode, exactTarget, hookMethod, data.getLoadOuterArgsOrdinal(), data.getModifyArgOrdinal(), options);
+        InserterMeta meta = inserterMetaCache.get(exactTarget);
+        if (meta != null) {
+            return ih.runAndNavigateWithCache(meta, true);
+        }
+
+        AbstractInsnNode last = ih.runAndNavigate();
+        InserterMeta meta1 = new InserterMeta(last, methodNode, maxLocalsCache, ih.getParamSlots(), ih.getReceiverSlot(), ih.getReturnSlot(), ih.stackHasReturn());
+        if (options.contains(PatchOption.DEBUG_MODE)) {
+            meta1.couldDebug = false;
+        }
+        inserterMetaCache.put(exactTarget, meta1);
+        return last;
     }
 }

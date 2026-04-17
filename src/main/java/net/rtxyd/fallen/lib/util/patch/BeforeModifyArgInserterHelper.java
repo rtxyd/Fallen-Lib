@@ -1,6 +1,5 @@
 package net.rtxyd.fallen.lib.util.patch;
 
-import it.unimi.dsi.fastutil.objects.Object2FloatLinkedOpenHashMap;
 import net.rtxyd.fallen.lib.util.MiscUtil;
 import net.rtxyd.fallen.lib.util.PatchUtil;
 import org.objectweb.asm.Opcodes;
@@ -11,7 +10,7 @@ import java.util.Set;
 
 import static net.rtxyd.fallen.lib.util.PatchUtil.*;
 
-public final class StandardInserterHelper extends AbstractInserterHelper {
+public final class BeforeModifyArgInserterHelper extends AbstractInserterHelper {
 
     private final boolean strictReturn;
     private boolean replaceReturn;
@@ -23,11 +22,18 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
     private int callReturnTypeSort;
     private int hookReturnTypeSort;
 
+    private Type[] outerArgs;
+    private boolean outerStatic;
+    private Type outerReturnType;
+    private Type targetType;
+    private int[] loadOuterArgsOrdinal;
+    private int modifyArgOrdinal;
+    private boolean modifyReceiver;
+
     private boolean hookReturnVoid;
     private boolean callReturnVoid;
     private boolean callReturnPrimitive;
     private boolean ignoreReceiver;
-    private boolean needCheckCast;
 
     private LabelNode startLabel;
     private LabelNode endLabel;
@@ -37,19 +43,19 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
     private int receiverSlot;
     private int returnSlot;
     private int contextFlags;
+    private boolean needCheckCast;
+    private boolean ignoreModifyArg;
 
-    private Type[] outerArgs;
-    private boolean outerStatic;
-    private int[] loadOuterArgsOrdinal;
-    private Type outerReturnType;
 
-    public StandardInserterHelper(MethodNode methodNode, MethodInsnNode exactTarget, MethodInsnNode hookMethod,
-                                  int[] loadOuterArgsOrdinal, Set<PatchOption> options) {
+    public BeforeModifyArgInserterHelper(MethodNode methodNode, MethodInsnNode exactTarget, MethodInsnNode hookMethod,
+                                         int[] loadOuterArgsOrdinal, int modifyArgOrdinal,
+                                         Set<PatchOption> options) {
         super(methodNode, exactTarget, hookMethod);
         this.replaceReturn = options.contains(PatchOption.REPLACE_RETURN);
         this.strictReturn = options.contains(PatchOption.STRICT_RETURN);
         this.debugMode = options.contains(PatchOption.DEBUG_MODE);
         this.loadOuterArgsOrdinal = loadOuterArgsOrdinal;
+        this.modifyArgOrdinal = modifyArgOrdinal;
         if (debugMode) {
             this.startLabel = new LabelNode();
             this.endLabel = new LabelNode();
@@ -63,65 +69,70 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
         computeParamSlots();
         InsnList before = computeBeforeInsns();
         methodNode.instructions.insertBefore(exactTarget, before);
-        InsnList after = computeAfterTargetMethod();
-        // get here to avoid insert clearing list.
-        AbstractInsnNode last = after.getLast();
-        methodNode.instructions.insert(exactTarget, after);
+        if (debugMode) {
+            methodNode.instructions.insert(exactTarget, endLabel);
+        }
         end();
-        return last == null ? exactTarget : last;
+        return exactTarget;
     }
 
     @Override
-    AbstractInsnNode runAndNavigateWithCache(InserterMeta meta, boolean insertBottom) {
+    AbstractInsnNode runAndNavigateWithCache(InserterMeta meta, boolean ignore) {
         localsMax = meta.localsMaxCache;
         paramSlots = meta.paramsSlot;
         receiverSlot = meta.receiverSlot;
         returnSlot = meta.returnSlot;
         debugMode = meta.couldDebug && debugMode;
 
-        InsnList after = new InsnList();
-        if (meta.stackHasReturn) {
-            after.add(new VarInsnNode(getStoreOpcode(callReturnType), returnSlot));
+        InsnList after = computeBeforeInsns();
+        methodNode.instructions.insertBefore(exactTarget, after);
+        if (debugMode) {
+            methodNode.instructions.insert(exactTarget, endLabel);
         }
-
-        after.add(loadHookParamsAndInvoke());
-        computeAfterHookMethod(after);
-        // get here to avoid insert clearing list.
-        AbstractInsnNode last = after.getLast();
-        if (insertBottom) {
-            // update newest node
-            methodNode.instructions.insert(meta.last, after);
-            meta.last = last;
-            return last;
-        }
-        methodNode.instructions.insert(exactTarget, after);
-        return meta.last;
-    }
-
-    private void initOuterInfo() {
-        outerArgs = Type.getArgumentTypes(methodNode.desc);
-        outerStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
-        outerReturnType = Type.getReturnType(methodNode.desc);
-        int maxOrdinal = outerStatic ? outerArgs.length : outerArgs.length + 1;
-        for (int i : loadOuterArgsOrdinal) {
-            if (i > maxOrdinal || i < 0)
-                throw new UnsupportedOperationException("Outer arg ordinal ["+ i + "] out of bound! [" + outerArgs.length + "]" + MiscUtil.culpritString(hookMethod));
-        }
+        return exactTarget;
     }
 
     private void init() {
         callArgs = Type.getArgumentTypes(exactTarget.desc);
         callReturnType = Type.getReturnType(exactTarget.desc);
         hookReturnType = Type.getReturnType(hookMethod.desc);
-        contextFlags = 0;
 
-        initOuterInfo();
-        if (!callReturnType.getDescriptor().equals(hookReturnType.getDescriptor())) {
-            if (strictReturn) {
-                throw new UnsupportedOperationException(String.format("Strict return but return type mismatches! Expect: [ %s ]. %s", callReturnType.getDescriptor(), PatchUtil.culpritHookMethod(hookMethod)));
-            }
-            this.needCheckCast = true;
+        outerArgs = Type.getArgumentTypes(methodNode.desc);
+        outerStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
+        outerReturnType = Type.getReturnType(methodNode.desc);
+        int maxOuterOrdinal = outerStatic ? outerArgs.length : outerArgs.length + 1;
+
+        if (modifyArgOrdinal == -1) {
+            this.ignoreModifyArg = true;
         }
+        if (modifyArgOrdinal < 0 && !ignoreModifyArg) {
+            throw new UnsupportedOperationException("Modify arg ordinal can't be less than 0! " + MiscUtil.culpritString(hookMethod));
+        }
+        if (modifyArgOrdinal > callArgs.length) {
+            throw new UnsupportedOperationException("Modify arg ordinal ["+ modifyArgOrdinal + "] out of bound [" + callArgs.length + "]! " + MiscUtil.culpritString(hookMethod));
+        }
+        for (int i : loadOuterArgsOrdinal) {
+            if (i > maxOuterOrdinal || i < 0)
+                throw new UnsupportedOperationException("Outer arg ordinal ["+ i + "] out of bound! [" + outerArgs.length + "]" + MiscUtil.culpritString(hookMethod));
+        }
+        if (!ignoreModifyArg) {
+            if (modifyArgOrdinal == 0) {
+                targetType = Type.getObjectType(exactTarget.owner);
+                modifyReceiver = true;
+            } else {
+                modifyArgOrdinal--;
+                targetType = callArgs[modifyArgOrdinal];
+                modifyReceiver = false;
+            }
+            if (!targetType.getDescriptor().equals(hookReturnType.getDescriptor())) {
+                if (strictReturn) {
+                    throw new UnsupportedOperationException(String.format("Strict return but return type mismatches! Expect: [ %s ]. %s", callReturnType.getDescriptor(), PatchUtil.culpritHookMethod(hookMethod)));
+                }
+                this.needCheckCast = true;
+            }
+        }
+
+        contextFlags = 0;
 
         callReturnTypeSort = callReturnType.getSort();
         hookReturnTypeSort = hookReturnType.getSort();
@@ -156,7 +167,6 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
             contextFlags |= InserterContext.F_RET_PRIMITIVE;
         }
         if (callReturnVoid) {
-            replaceReturn = false;
             contextFlags |= InserterContext.F_RET_VOID;
         }
 
@@ -165,16 +175,11 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
         }
 
         // these two are related to hook
-        if (hookReturnVoid) {
-            if (replaceReturn) {
-                throw new UnsupportedOperationException(String.format("Replace return value but inserter method returns void. %s", PatchUtil.culpritHookMethod(hookMethod)));
-            }
+        if (hookReturnVoid || hookReturnTypeSort != callReturnTypeSort) {
+            replaceReturn = false;
         }
         if (replaceReturn) {
             contextFlags |= InserterContext.F_REPLACE_RET;
-        }
-        if (strictReturn) {
-            contextFlags |= InserterContext.F_STRICT_RET;
         }
     }
 
@@ -203,17 +208,18 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
     }
 
     private InsnList computeBeforeInsns() {
-        InsnList argInsns = new InsnList();
+        InsnList list = new InsnList();
         if (debugMode) {
-            argInsns.add(startLabel);
+            list.add(startLabel);
         }
         for (int i = callArgs.length - 1; i >= 0; i--) {
-            argInsns.add(new VarInsnNode(getStoreOpcode(callArgs[i]), paramSlots[i]));
+            list.add(new VarInsnNode(getStoreOpcode(callArgs[i]), paramSlots[i]));
         }
         receiverSlot = localsMax;
+
         if (!ignoreReceiver) {
             // store object ref (this)
-            argInsns.add(new VarInsnNode(Opcodes.ASTORE, receiverSlot));
+            list.add(new VarInsnNode(Opcodes.ASTORE, receiverSlot));
             if (debugMode) {
                 methodNode.localVariables.add(new LocalVariableNode(
                         "fallen$hookThs",
@@ -224,13 +230,36 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
                         localsMax
                 ));
             }
-            argInsns.add(new VarInsnNode(Opcodes.ALOAD, receiverSlot));
+            list.add(new VarInsnNode(Opcodes.ALOAD, receiverSlot));
             localsMax += 1;
+            if (modifyReceiver) {
+                computeModifyArg(list, Opcodes.ASTORE, receiverSlot);
+            } else {
+                computeModifyArg(list, getStoreOpcode(targetType), paramSlots[modifyArgOrdinal]);
+            }
+        } else {
+            computeModifyArg(list, getStoreOpcode(targetType), paramSlots[modifyArgOrdinal]);
         }
+
         for (int i = 0; i < callArgs.length; i++) {
-            argInsns.add(new VarInsnNode(getLoadOpcode(callArgs[i]), paramSlots[i]));
+            int opcode = getLoadOpcode(callArgs[i]);
+            list.add(new VarInsnNode(opcode, paramSlots[i]));
         }
-        return argInsns;
+        return list;
+    }
+
+    private void computeModifyArg(InsnList list, int opcode, int modifySlot) {
+        list.add(loadHookParamsAndInvoke());
+        if (!hookReturnVoid) {
+            if (ignoreModifyArg) {
+                PatchUtil.popValue(list, hookReturnType.getDescriptor());
+            } else {
+                if (!strictReturn) {
+                    PatchUtil.replaceWithTypeAdaptation(list, hookReturnType.getDescriptor(), targetType.getDescriptor());
+                }
+                list.add(new VarInsnNode(opcode, modifySlot));
+            }
+        }
     }
 
     private InsnList newCtx() {
@@ -242,144 +271,105 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
         } else {
             newInsns.add(new VarInsnNode(Opcodes.ALOAD, receiverSlot));
         }
-        if (!callReturnVoid) {
-            if (callReturnPrimitive) {
-                newInsns.add(new VarInsnNode(getLoadOpcode(callReturnType), returnSlot));
-                newInsns.add(boxType(callReturnType));
-            } else {
-                // object
-                newInsns.add(new VarInsnNode(getLoadOpcode(callReturnType), returnSlot));
-            }
-        } else {
-            newInsns.add(new InsnNode(Opcodes.ACONST_NULL));
-        }
+        newInsns.add(new InsnNode(Opcodes.ACONST_NULL));
         newInsns.add(pushInt(contextFlags));
+        // last outer args index
         newInsns.add(pushInt(loadOuterArgsOrdinal.length - 1));
         newInsns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "net/rtxyd/fallen/lib/util/patch/InserterContext", "<init>", "(Ljava/lang/Object;Ljava/lang/Object;II)V"));
         // here is 1 stack remain
         return newInsns;
     }
 
-    private void loadOuterArgs(InsnList invokeInsns, int offset) {
-        for (int i = 0; i < loadOuterArgsOrdinal.length; i++) {
-            int paramSlot = loadOuterArgsOrdinal[i];
-            if (outerArgs.length == 0) break;
-            int index = i + offset;
-            Type callT = outerArgs[paramSlot];
-            if (callT.getSort() != Type.OBJECT && callT.getSort() != Type.ARRAY) {
-                invokeInsns.add(new InsnNode(Opcodes.DUP));
-                invokeInsns.add(pushInt(index));
-                invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
-                invokeInsns.add(boxType(callT));
-                invokeInsns.add(new InsnNode(Opcodes.AASTORE));
-            } else {
-                // object
-                invokeInsns.add(new InsnNode(Opcodes.DUP));
-                invokeInsns.add(pushInt(index));
-                invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
-                invokeInsns.add(new InsnNode(Opcodes.AASTORE));
-            }
+    private void loadOuterArgsStatic(InsnList invokeInsns, int paramSlot, int index) {
+        Type callT = outerArgs[paramSlot];
+        if (callT.getSort() != Type.OBJECT && callT.getSort() != Type.ARRAY) {
+            invokeInsns.add(new InsnNode(Opcodes.DUP));
+            invokeInsns.add(pushInt(index));
+            invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
+            invokeInsns.add(boxType(callT));
+            invokeInsns.add(new InsnNode(Opcodes.AASTORE));
+        } else {
+            // object
+            invokeInsns.add(new InsnNode(Opcodes.DUP));
+            invokeInsns.add(pushInt(index));
+            invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
+            invokeInsns.add(new InsnNode(Opcodes.AASTORE));
+        }
+    }
+
+    private void loadOuterArgsInstance(InsnList invokeInsns, int paramSlot, int index) {
+        if (paramSlot == 0) {
+            invokeInsns.add(new InsnNode(Opcodes.DUP));
+            invokeInsns.add(pushInt(index));
+            invokeInsns.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            invokeInsns.add(new InsnNode(Opcodes.AASTORE));
+            return;
+        } else {
+            paramSlot -= 1;
+        }
+        Type callT = outerArgs[paramSlot];
+        if (callT.getSort() != Type.OBJECT && callT.getSort() != Type.ARRAY) {
+            invokeInsns.add(new InsnNode(Opcodes.DUP));
+            invokeInsns.add(pushInt(index));
+            invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot + 1));
+            invokeInsns.add(boxType(callT));
+            invokeInsns.add(new InsnNode(Opcodes.AASTORE));
+        } else {
+            // object
+            invokeInsns.add(new InsnNode(Opcodes.DUP));
+            invokeInsns.add(pushInt(index));
+            invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot + 1));
+            invokeInsns.add(new InsnNode(Opcodes.AASTORE));
         }
     }
 
     private InsnList loadHookParamsAndInvoke() {
         InsnList invokeInsns = new InsnList();
+        // 1
         invokeInsns.add(newCtx());
+        // 2
         invokeInsns.add(pushInt(callArgs.length + loadOuterArgsOrdinal.length));
         invokeInsns.add(new TypeInsnNode(Opcodes.ANEWARRAY, "java/lang/Object"));
 
         // load params to stack and invoke hook
+        if (!(outerStatic && outerArgs.length == 0)) {
+            for (int i = 0; i < loadOuterArgsOrdinal.length; i++) {
+                int paramSlot = loadOuterArgsOrdinal[i];
+                if (outerStatic) {
+                    loadOuterArgsStatic(invokeInsns, paramSlot, i);
+                } else {
+                    loadOuterArgsInstance(invokeInsns, paramSlot, i);
+                }
+            }
+        }
+
+        int offset = loadOuterArgsOrdinal.length;
         for (int i = 0; i < callArgs.length; i++) {
             Type callT = callArgs[i];
             int paramSlot = paramSlots[i];
+            int index = i + offset;
             if (callT.getSort() != Type.OBJECT && callT.getSort() != Type.ARRAY) {
                 invokeInsns.add(new InsnNode(Opcodes.DUP));
-                invokeInsns.add(pushInt(i));
+                invokeInsns.add(pushInt(index));
                 invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
                 invokeInsns.add(boxType(callT));
                 invokeInsns.add(new InsnNode(Opcodes.AASTORE));
             } else {
                 // object
                 invokeInsns.add(new InsnNode(Opcodes.DUP));
-                invokeInsns.add(pushInt(i));
+                invokeInsns.add(pushInt(index));
                 invokeInsns.add(new VarInsnNode(getLoadOpcode(callT), paramSlot));
                 invokeInsns.add(new InsnNode(Opcodes.AASTORE));
             }
         }
 
-        loadOuterArgs(invokeInsns, callArgs.length);
         /*
          *  invoke hook method
          *  ctx, arg1, arg2, arg3,..., argN
          */
+        // consume 2
         invokeInsns.add(hookMethod.clone(null));
-        computeAfterHookMethod(invokeInsns);
         return invokeInsns;
-    }
-
-    private InsnList computeAfterTargetMethod() {
-        // createInserterContext
-        InsnList hookInsns = new InsnList();
-        returnSlot = localsMax;
-        if (!callReturnVoid) {
-            hookInsns.add(new VarInsnNode(getStoreOpcode(callReturnType), returnSlot));
-            if (debugMode) {
-                methodNode.localVariables.add(new LocalVariableNode(
-                        "fallen$hookRet",
-                        callReturnType.getDescriptor(),
-                        null,
-                        startLabel,
-                        endLabel,
-                        localsMax
-                ));
-            }
-            localsMax += callReturnType.getSize();
-        }
-
-        hookInsns.add(loadHookParamsAndInvoke());
-        computeAfterHookMethod(hookInsns);
-        return hookInsns;
-    }
-
-    private void computeAfterHookMethod(InsnList retList) {
-        // test here with hook returns x,
-        // and target returns x,
-        // and relaceReturn is false
-        if (!replaceReturn) {
-            if (!callReturnVoid && !hookReturnVoid) {
-                PatchUtil.popValue(retList, hookReturnType.getDescriptor());
-                retList.add(new VarInsnNode(getLoadOpcode(callReturnType), returnSlot));
-            }
-            if (callReturnVoid && !hookReturnVoid) {
-                PatchUtil.popValue(retList, hookReturnType.getDescriptor());
-            }
-            if (!callReturnVoid && hookReturnVoid) {
-                retList.add(new VarInsnNode(getLoadOpcode(callReturnType), returnSlot));
-            }
-        } else {
-            // when callReturnVoid replaceReturn is false, but in case, I check these.
-            // only when strict return is false,
-            // when it's true, we don't need to check these.
-            if (!strictReturn) {
-                if (!hookReturnVoid) {
-                    // only call this method when hook is not void.
-                    PatchUtil.replaceWithTypeAdaptation(retList, hookReturnType.getDescriptor(), callReturnType.getDescriptor());
-                }
-                if (callReturnVoid && !hookReturnVoid) {
-                    // callReturnVoid is checked in init, and if it's void, replace return is set to false,
-                    // this is unreachable
-                    PatchUtil.popValue(retList, hookReturnType.getDescriptor());
-                }
-                if (!callReturnVoid && hookReturnVoid) {
-                    // this is unreachable,
-                    // has thrown exception in init when hook return void but want to replace return.
-                    retList.add(new VarInsnNode(getLoadOpcode(callReturnType), returnSlot));
-                }
-            }
-        }
-        if (debugMode) {
-            retList.add(endLabel);
-        }
     }
 
     private void end() {
@@ -402,3 +392,4 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
         return !callReturnVoid;
     }
 }
+

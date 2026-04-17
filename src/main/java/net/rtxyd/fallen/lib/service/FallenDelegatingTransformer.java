@@ -46,7 +46,8 @@ public final class FallenDelegatingTransformer implements ITransformer<ClassNode
             ClassNode fallback = PatchUtil.cloneClassNode(cn);
             try {
                 patchContext.setEntryInserters(e.getInserter());
-                t.apply(cn, patchContext);
+                patchContext.setClassNode(cn);
+                t.apply(patchContext);
                 if (cn == null) {
                     throw new NullPointerException("ClassNode is set to null!");
                 }
@@ -65,7 +66,7 @@ public final class FallenDelegatingTransformer implements ITransformer<ClassNode
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
-        // Note: cpw transformer will compute frames, so we don't need to worry about it.
+        // OptionalNotes: cpw transformer will compute frames, so we don't need to worry about it.
         // just modify and return.
         return cn;
     }

@@ -4,7 +4,9 @@ import net.rtxyd.fallen.lib.api.IFallenPatch;
 import net.rtxyd.fallen.lib.config.FallenConfig;
 import net.rtxyd.fallen.lib.type.engine.ResourceContainer;
 import net.rtxyd.fallen.lib.type.service.IClassBytesProvider;
+import net.rtxyd.fallen.lib.util.patch.InserterMethodData;
 import net.rtxyd.fallen.lib.util.patch.InserterType;
+import net.rtxyd.fallen.lib.util.patch.PatchOption;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
@@ -104,7 +106,7 @@ class PatchEntryHelper {
     public FallenPatchEntry parseAndBuild(String className, AnnotationData data, File cont) {
         Integer pr = (Integer) data.get("priority");
         List<String> ic = data.getWithDefaut("inserters", List.of());
-        Map<String, MethodInsnNode> inserterMap = new HashMap<>();
+        Map<String, InserterMethodData> inserterMap = new HashMap<>();
         buildInserter(inserterMap, ic, cont);
         if (inserterMap.isEmpty()) {
             FallenBootstrap.LOGGER.debug("Warning: inserters of {} is empty. May be unstandard patch.", className);
@@ -130,13 +132,13 @@ class PatchEntryHelper {
         return buildEntry(className, pr, targets, inserterMap);
     }
 
-    private void buildInserter(Map<String, MethodInsnNode> inserterMap, List<String> classNames, File cont) {
+    private void buildInserter(Map<String, InserterMethodData> inserterMap, List<String> classNames, File cont) {
         for (String className : classNames) {
             parseAndBuildInserter(inserterMap, cont, className);
         }
     }
 
-    private void parseAndBuildInserter(Map<String, MethodInsnNode> inserterMap, File cont, String className) {
+    private void parseAndBuildInserter(Map<String, InserterMethodData> inserterMap, File cont, String className) {
         String internal = className.replace(".", "/");
         String zn = internal + ".class";
         // in development environment.
@@ -179,7 +181,7 @@ class PatchEntryHelper {
         }
     }
 
-    private void buildInserterInner(Map<String, MethodInsnNode> inserterMap, ClassNode cn, String internalName, String qualifiedName) {
+    private void buildInserterInner(Map<String, InserterMethodData> inserterMap, ClassNode cn, String internalName, String qualifiedName) {
         String sStandard = InserterType.standardStarter();
         String fInserter = IFallenPatch.fallenInserterInternalName();
         for (MethodNode mn : cn.methods) {
@@ -191,15 +193,43 @@ class PatchEntryHelper {
                 }
                 AnnotationData data = opt.get();
                 String type = data.getWithDefaut("type", InserterType.STANDARD.name());
+                InserterType type1 = InserterType.valueOf(type);
+                if (type == null) {
+                    FallenBootstrap.LOGGER.warn("Inserter type [{}] does not exist", type);
+                }
                 if ((mn.access & Opcodes.ACC_PUBLIC) != 0
                         && (mn.access & Opcodes.ACC_STATIC) != 0) {
-                    if (mn.desc.startsWith(sStandard)) {
-                        if (type.equals(InserterType.STANDARD.name()) && mn.desc.endsWith("Ljava/lang/Object;")) {
-                            inserterMap.put(qualifiedName + "." + mn.name + "." + InserterType.STANDARD.ordinal(),
-                                    new MethodInsnNode(Opcodes.INVOKESTATIC, internalName, mn.name, InserterType.STANDARD.desc()));
-                        } else if (type.equals(InserterType.STANDARD_VOID.name()) && mn.desc.endsWith("V")) {
-                            inserterMap.put(qualifiedName + "." + mn.name + "." + InserterType.STANDARD_VOID.ordinal(),
-                                    new MethodInsnNode(Opcodes.INVOKESTATIC, internalName, mn.name, InserterType.STANDARD_VOID.desc()));
+                    if (!mn.desc.startsWith(sStandard)) continue;
+                    InserterMethodData.Params detail;
+                    AnnotationData params = (AnnotationData) data.get("params");
+                    if (params == null) {
+                        detail = InserterMethodData.Params.createDefault();
+                    } else {
+                        List<Integer> catchOuterArgs = params.getWithDefaut("catchOuterArgs", List.of());
+                        int[] args = new int[catchOuterArgs.size()];
+                        for (int i = 0; i < catchOuterArgs.size(); i++) {
+                            args[i] = catchOuterArgs.get(i);
+                        }
+                        int modifyArg = params.getWithDefaut("modifyArg", -1);
+                        detail = new InserterMethodData.Params(args, modifyArg);
+                    }
+                    List<String> options = data.getWithDefaut("options", List.of());
+                    Set<PatchOption> patchOptions = new HashSet<>();
+                    for (String option : options) {
+                        patchOptions.add(PatchOption.valueOf(option));
+                    }
+                    switch (type1) {
+                        case STANDARD, BEFORE_MODIFY_ARG -> {
+                            InserterMethodData value = new InserterMethodData(new MethodInsnNode(Opcodes.INVOKESTATIC, internalName, mn.name, mn.desc), type1, detail, patchOptions);
+                            putAndLog(inserterMap, value, qualifiedName, mn, type1);
+                        }
+                        case STANDARD_VOID -> {
+                            if (mn.desc.endsWith("V")) {
+                                InserterMethodData value = new InserterMethodData(new MethodInsnNode(Opcodes.INVOKESTATIC, internalName, mn.name, mn.desc), type1, detail, patchOptions);
+                                putAndLog(inserterMap, value, qualifiedName, mn, type1);
+                            } else {
+                                throw new UnsupportedOperationException(String.format("Method is annotated with VOID, but return type is not void! Culprit: [ %s ]", qualifiedName + "." + mn.name + mn.desc));
+                            }
                         }
                     }
                 }
@@ -207,7 +237,16 @@ class PatchEntryHelper {
         }
     }
 
-    private FallenPatchEntry buildEntry(String className, int priority, FallenPatchEntry.Targets targets, Map<String, MethodInsnNode> inserters) {
+    private void putAndLog(Map<String, InserterMethodData> inserterMap, InserterMethodData data, String qualifiedName, MethodNode mn, InserterType type1) {
+        String key = qualifiedName + "." + mn.name + "." + type1.ordinal();
+        if (inserterMap.containsKey(key)) {
+            throw new UnsupportedOperationException(String.format("Duplicated inserter method name is not supported, please rename it. Culprit: [ %s ]", qualifiedName + "." + mn.name + mn.desc));
+        }
+        inserterMap.put(key, data);
+        FallenBootstrap.LOGGER.info("Registered inserter: [ {} ] with method: [ {} ]", key, qualifiedName + "." + mn.name + mn.desc);
+    }
+
+    private FallenPatchEntry buildEntry(String className, int priority, FallenPatchEntry.Targets targets, Map<String, InserterMethodData> inserters) {
         return new FallenPatchEntry(
                 className,
                 targets.computeTargeter(),

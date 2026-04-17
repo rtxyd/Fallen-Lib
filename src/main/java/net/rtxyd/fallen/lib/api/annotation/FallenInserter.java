@@ -15,4 +15,10 @@ public @interface FallenInserter {
      * Type of this inserter
      */
     InserterType type() default InserterType.STANDARD;
+
+    Params params();
+
+    Options options() default @Options;
+
+    Notes notes() default @Notes;
 }

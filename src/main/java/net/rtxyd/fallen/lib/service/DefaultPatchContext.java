@@ -2,7 +2,8 @@ package net.rtxyd.fallen.lib.service;
 
 import net.rtxyd.fallen.lib.type.service.IFallenPatchContext;
 import net.rtxyd.fallen.lib.util.patch.InserterKey;
-import org.objectweb.asm.tree.MethodInsnNode;
+import net.rtxyd.fallen.lib.util.patch.InserterMethodData;
+import org.objectweb.asm.tree.ClassNode;
 
 import java.util.*;
 
@@ -10,7 +11,8 @@ public class DefaultPatchContext implements IFallenPatchContext {
     private final Set<String> appliedByClass = new LinkedHashSet<>();
     private final Set<String> appliedByClassView = Collections.unmodifiableSet(appliedByClass);
     private boolean isClassEnd;
-    private Map<String, MethodInsnNode> currentEntryInserters;
+    private ClassNode classNode;
+    private Map<String, InserterMethodData> currentEntryInserters;
 
     public void beginClass() {
         isClassEnd = false;
@@ -19,6 +21,14 @@ public class DefaultPatchContext implements IFallenPatchContext {
 
     void recordPatchEffect(String patchId) {
         appliedByClass.add(patchId);
+    }
+
+    void setClassNode(ClassNode node) {
+        this.classNode = node;
+    }
+
+    public ClassNode getClassNode() {
+        return this.classNode;
     }
 
     @Override
@@ -32,11 +42,11 @@ public class DefaultPatchContext implements IFallenPatchContext {
     }
 
     @Override
-    public MethodInsnNode getFallenInserter(InserterKey inserterKey) {
+    public InserterMethodData getFallenInserter(InserterKey inserterKey) {
         return currentEntryInserters.get(inserterKey.combine());
     }
 
-    void setEntryInserters(Map<String, MethodInsnNode> inserter) {
+    void setEntryInserters(Map<String, InserterMethodData> inserter) {
         currentEntryInserters = Collections.unmodifiableMap(inserter);
     }
 

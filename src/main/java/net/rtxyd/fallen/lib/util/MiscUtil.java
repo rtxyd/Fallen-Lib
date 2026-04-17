@@ -1,5 +1,7 @@
 package net.rtxyd.fallen.lib.util;
 
+import org.objectweb.asm.tree.MethodInsnNode;
+
 import java.util.List;
 
 public class MiscUtil {
@@ -41,5 +43,9 @@ public class MiscUtil {
                 "§f\n" +
                 "§6\n" +
                 "§c§l==================================================", currentModId, missingModId, missingModVersion);
+    }
+
+    public static String culpritString(MethodInsnNode hookMethod) {
+        return "Culprit: " + "[" + hookMethod.owner.replace("/", ".") + "::" + hookMethod.name + hookMethod.desc + "]";
     }
 }
