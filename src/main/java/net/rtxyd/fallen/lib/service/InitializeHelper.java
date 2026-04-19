@@ -1,15 +1,12 @@
 package net.rtxyd.fallen.lib.service;
 
 import cpw.mods.modlauncher.api.IEnvironment;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.fml.loading.FMLLoader;
-import net.minecraftforge.forgespi.Environment;
+import net.rtxyd.fallen.lib.FallenLib;
 import net.rtxyd.fallen.lib.config.FallenConfig;
 import net.rtxyd.fallen.lib.engine.*;
 import net.rtxyd.fallen.lib.extra.cmerge.SimpleClassMergeEngine;
 import net.rtxyd.fallen.lib.extra.mixin.FallenMixinConnectorRegistry;
 import net.rtxyd.fallen.lib.type.engine.ResourceScanner;
-import net.rtxyd.fallen.lib.util.MiscUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,7 +71,7 @@ public class InitializeHelper {
             File[] files = modsDir.listFiles((f, n) -> n.endsWith(".jar"));
             if (files != null) {
                 for (File jar : files) {
-                    scanners.add(new JarScanner(jar));
+                    scanners.add(new JarScanner(jar, false));
                 }
             } else {
                 FallenBootstrap.LOGGER.error("Mods directory is invalid: {}", modsDir.getAbsolutePath());
@@ -85,7 +82,7 @@ public class InitializeHelper {
             for (String path : System.getProperty("java.class.path").split(File.pathSeparator)) {
                 File f = new File(path);
                 if (f.isDirectory()) scanners.add(new DirectoryScanner(f));
-                else if (f.getName().endsWith(".jar")) scanners.add(new JarScanner(f));
+                else if (f.getName().endsWith(".jar")) scanners.add(new JarScanner(f, false));
             }
         }
     }
@@ -102,7 +99,7 @@ public class InitializeHelper {
     }
 
     void registerMixinConnectors() {
-        for (FallenConfig config : ctx.configContainers().keySet()) {
+        for (FallenConfig config : ctx.configs().keySet()) {
             if (config.getMixinConnector().isEmpty()) continue;
             FallenMixinConnectorRegistry.register(config.getMixinConnector());
         }
@@ -113,8 +110,8 @@ public class InitializeHelper {
 
         ClassIndex index = ctx.classIndex;
         Set<String> allClasses = index.getAllClasses();
-        ctx.configContainers().forEach(((config, container) -> {
-            new PatchEntryHelper().buildPatchEntries(config, container, entries, registry.classBytes);
+        ctx.configs().forEach(((config, resource) -> {
+            new PatchEntryHelper().buildPatchEntries(config, resource, entries, registry.classBytes);
         }));
         FallenBootstrap.LOGGER.info("Prepare to sort fallen patches.");
         entries.sort(Comparator.comparingInt(FallenPatchEntry::getPriority).reversed());
