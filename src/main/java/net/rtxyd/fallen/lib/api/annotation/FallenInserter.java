@@ -19,6 +19,4 @@ public @interface FallenInserter {
     Params params();
 
     Options options() default @Options;
-
-    Notes notes() default @Notes;
 }
