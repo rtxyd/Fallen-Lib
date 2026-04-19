@@ -31,7 +31,7 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
 
     @Override
     protected void registerBuiltinCodecs() {
-        this.registerCodec(ResourceLocation.fromNamespaceAndPath(FallenLib.MODID, "extra_gem_bonuses"), ExtraGemBonus.CODEC);
+        this.registerCodec(ResourceLocation.fromNamespaceAndPath(FallenLib.MODID, "extra_gem_bonus"), ExtraGemBonus.CODEC);
     }
 
     @Override
