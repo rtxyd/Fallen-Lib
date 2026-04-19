@@ -1,15 +1,11 @@
 package net.rtxyd.fallen.lib.service;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import net.minecraftforge.fml.loading.EarlyLoadingException;
-import net.minecraftforge.fml.loading.UniqueModListBuilder;
 import net.minecraftforge.fml.loading.moddiscovery.*;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.IModLocator;
 import net.minecraftforge.forgespi.locating.ModFileLoadingException;
-import net.rtxyd.fallen.lib.config.BuildInfo;
-import org.apache.maven.artifact.versioning.ArtifactVersion;
+import net.rtxyd.fallen.lib.FallenLib;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,21 +18,10 @@ import java.util.Map;
 
 import static net.rtxyd.fallen.lib.service.FallenBootstrap.LOGGER;
 
-public class SimpleModLocator extends AbstractJarFileModProvider implements IModLocator {
+public class SimpleForgeConnector extends AbstractJarFileModProvider implements IModLocator {
 
     public Path getPath() {
-        final String runtime_loc = "META-INF/runtime/";
-        final String mod_name = "fallen_lib";
-        final String version = BuildInfo.VERSION;
-        final String classifier = "runtime";
-        final String fullPath = runtime_loc
-                + mod_name
-                + "-"
-                + version
-                + "-"
-                + classifier
-                + ".jar";
-        URL url = this.getClass().getClassLoader().getResource(fullPath);
+        URL url = this.getClass().getClassLoader().getResource(FallenLib.RUNTIME_MOD_LOC);
         if (url == null) {
             if (FallenBootstrap.isDevEnvironment) {
                 LOGGER.warn("Run fallen core lib in dev environment without runtime lib.");
