@@ -1,12 +1,14 @@
 package net.rtxyd.fallen.lib.util.ins_attr;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 
 public abstract class AInsAttribute<INSTANCE> {
     private final INSTANCE instance;
-    private List<AInsAttributeModifier> modifiers;
+    private Map<String, AInsAttributeModifier> modifiers;
     protected float initBase;
     protected float initFinal;
     private float multiplyBase;
@@ -16,7 +18,7 @@ public abstract class AInsAttribute<INSTANCE> {
     private float addFinal;
     private float setFinal;
 
-    public AInsAttribute(INSTANCE instance, List<AInsAttributeModifier> modifiers, float initBase, float initFinal) {
+    public AInsAttribute(INSTANCE instance, Map<String, AInsAttributeModifier> modifiers, float initBase, float initFinal) {
         this.instance = instance;
         this.modifiers = modifiers;
         this.initBase = initBase;
@@ -39,12 +41,14 @@ public abstract class AInsAttribute<INSTANCE> {
         clearModifier();
     }
 
-    public final void addModifier(AInsAttributeModifier modifier) {
-        modifiers.add(modifier);
+    public final void addModifier(String name, AInsAttributeModifier modifier) {
+        modifiers.put(name, modifier);
     }
 
+    public final void removeModifier(String name) {modifiers.remove(name);}
+
     protected final void clearModifier() {
-        modifiers = new ArrayList<>();
+        modifiers = new HashMap<>();
     }
 
     protected final void calc(AInsAttributeModifier modifier) {
@@ -72,7 +76,7 @@ public abstract class AInsAttribute<INSTANCE> {
     }
 
     public INSTANCE output(BiFunction<INSTANCE, Float, INSTANCE> function) {
-        modifiers.forEach(this::calc);
+        modifiers.values().forEach(this::calc);
         computeFinal();
         return function.apply(instance, setFinal);
     }

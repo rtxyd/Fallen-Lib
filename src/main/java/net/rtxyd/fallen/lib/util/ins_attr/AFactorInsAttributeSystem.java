@@ -33,6 +33,20 @@ public abstract class AFactorInsAttributeSystem<CLASSIFIER, INSTANCE, ATTRIBUTE 
         return attrs;
     }
 
+    public void addModifier(CLASSIFIER key, String name, AInsAttributeModifier modifier) {
+        AInsAttribute<INSTANCE> attribute = attributes.get(key);
+        if (attribute != null) {
+            attribute.addModifier(name, modifier);
+        }
+    }
+
+    public void removeModifier(CLASSIFIER key, String name, AInsAttributeModifier modifier) {
+        AInsAttribute<INSTANCE> attribute = attributes.get(key);
+        if (attribute != null) {
+            attribute.removeModifier(name);
+        }
+    }
+
     public abstract ATTRIBUTE parse(Map.Entry<CLASSIFIER, INSTANCE> en);
 
     public abstract INSTANCE createInsWith(INSTANCE old, float value);
