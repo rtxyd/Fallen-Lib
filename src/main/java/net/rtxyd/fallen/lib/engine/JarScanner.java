@@ -47,6 +47,7 @@ public class JarScanner implements ResourceScanner {
             Attributes attrs = manifest.getMainAttributes();
             String title = attrs.getValue("Specification-Title");
             // check if it's runtime lib
+            if (title == null) return;
             if (title.equals(FallenLib.SPEC_TITLE_ALL)) {
                 scanInnerJar = true;
             }

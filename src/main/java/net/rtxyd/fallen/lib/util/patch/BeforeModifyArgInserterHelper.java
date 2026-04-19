@@ -264,7 +264,7 @@ public final class BeforeModifyArgInserterHelper extends AbstractInserterHelper 
 
     private InsnList newCtx() {
         InsnList newInsns = new InsnList();
-        newInsns.add(new TypeInsnNode(Opcodes.NEW, "net/rtxyd/fallen/lib/util/patch/InserterContext"));
+        newInsns.add(new TypeInsnNode(Opcodes.NEW, "net/rtxyd/fallen/lib/util/patch/NInserterContext"));
         newInsns.add(new InsnNode(Opcodes.DUP));
         if (ignoreReceiver) {
             newInsns.add(new InsnNode(Opcodes.ACONST_NULL));
@@ -275,7 +275,7 @@ public final class BeforeModifyArgInserterHelper extends AbstractInserterHelper 
         newInsns.add(pushInt(contextFlags));
         // last outer args index
         newInsns.add(pushInt(loadOuterArgsOrdinal.length - 1));
-        newInsns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "net/rtxyd/fallen/lib/util/patch/InserterContext", "<init>", "(Ljava/lang/Object;Ljava/lang/Object;II)V"));
+        newInsns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "net/rtxyd/fallen/lib/util/patch/NInserterContext", "<init>", "(Ljava/lang/Object;Ljava/lang/Object;II)V"));
         // here is 1 stack remain
         return newInsns;
     }

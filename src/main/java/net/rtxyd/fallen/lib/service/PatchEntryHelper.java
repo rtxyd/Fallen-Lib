@@ -193,10 +193,8 @@ public class PatchEntryHelper {
             }
             return;
         }
-        if (rc.container().isDirectory()) {
-            for (String className : classNames) {
-                parseAndBuildInserter(inserterMap, rc, className);
-            }
+        for (String className : classNames) {
+            parseAndBuildInserter(inserterMap, rc, className);
         }
     }
 
@@ -226,34 +224,29 @@ public class PatchEntryHelper {
         });
     }
 
-    private void parseAndBuildInserter(Map<String, InserterMethodData> inserterMap, Resource rc, String className) {
-        String internal = className.replace(".", "/");
-        String zn = internal + ".class";
-        // in development environment.
-        ResourceContainer cont = rc.container();
-        if (cont.isDirectory()) {
-            ClassNode cn = null;
-            try (InputStream isA = getClass().getClassLoader().getResourceAsStream(zn)) {
-                if (isA != null) {
-                    cn = new ClassNode();
-                    new ClassReader(isA).accept(cn, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-                }
-                try (InputStream isB = ClassLoader.getSystemClassLoader().getResourceAsStream(zn)) {
-                    if (isB != null) {
-                        cn = new ClassNode();
-                        new ClassReader(isB).accept(cn, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
-                    }
-                }
-                if (cn == null) {
-                    FallenBootstrap.LOGGER.debug("Failed parsing [{}] in folder [{}]", zn, cont.getName());
-                    return;
-                }
-                buildInserterInner(inserterMap, cn, internal, className);
-            } catch (IOException e) {
-                FallenBootstrap.LOGGER.debug("Failed parsing [{}] in folder [{}]", zn, cont.getName(), e);
+    private void loadClassNodeAndBuildDir(Map<String, InserterMethodData> inserterMap, ResourceContainer cont, String zn, String internal, String clsName) {
+        ClassNode cn = null;
+        try (InputStream isA = getClass().getClassLoader().getResourceAsStream(zn)) {
+            if (isA != null) {
+                cn = new ClassNode();
+                new ClassReader(isA).accept(cn, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
             }
-            return;
+            try (InputStream isB = ClassLoader.getSystemClassLoader().getResourceAsStream(zn)) {
+                if (isB != null) {
+                    cn = new ClassNode();
+                    new ClassReader(isB).accept(cn, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                }
+            }
+            if (cn == null) {
+                throw new RuntimeException("Class is not existed or can't be read");
+            }
+            buildInserterInner(inserterMap, cn, internal, clsName);
+        } catch (Exception e) {
+            FallenBootstrap.LOGGER.debug("Failed parsing [{}] in folder [{}]", zn, cont.getName(), e);
         }
+    }
+
+    private void loadClassNodeAndBuildJar(Map<String, InserterMethodData> inserterMap, ResourceContainer cont, String zn, String internal, String clsName) {
         try (JarFile jarFile = new JarFile(cont.asFile().orElseThrow())) {
             JarEntry jarEntry = jarFile.getJarEntry(zn);
             if (jarEntry == null) {
@@ -263,11 +256,23 @@ public class PatchEntryHelper {
             try (InputStream is = jarFile.getInputStream(jarEntry)) {
                 ClassNode cn = new ClassNode();
                 new ClassReader(is).accept(cn, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES | ClassReader.SKIP_CODE);
-                buildInserterInner(inserterMap, cn, internal, className);
+                buildInserterInner(inserterMap, cn, internal, clsName);
             }
         } catch (IOException e) {
             FallenBootstrap.LOGGER.debug("Failed parsing [{}] in jarFile [{}]",zn, cont.getName(), e);
         }
+    }
+
+    private void parseAndBuildInserter(Map<String, InserterMethodData> inserterMap, Resource rc, String className) {
+        String internal = className.replace(".", "/");
+        String zn = internal + ".class";
+        // in development environment.
+        ResourceContainer cont = rc.container();
+        if (cont.isDirectory()) {
+            loadClassNodeAndBuildDir(inserterMap, cont, zn, internal, className);
+            return;
+        }
+        loadClassNodeAndBuildJar(inserterMap, cont, zn, internal, className);
     }
 
     private void buildInserterInner(Map<String, InserterMethodData> inserterMap, ClassNode cn, String internalName, String qualifiedName) {
