@@ -1,13 +1,13 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.mixin;
 
 import net.minecraft.world.item.ItemStack;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.ItemStackCakyGetter;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.ItemStackCakyHandler;
 import net.rtxyd.fallen.lib.util.ObjectCaky;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
 @Mixin(ItemStack.class)
-public class ItemStackMixin implements ItemStackCakyGetter {
+public class ItemStackMixin implements ItemStackCakyHandler {
     @Unique
     private volatile ObjectCaky fallen_lib$caky = null;
 

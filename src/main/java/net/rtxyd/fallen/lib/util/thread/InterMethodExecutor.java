@@ -23,7 +23,9 @@ public class InterMethodExecutor {
                     executeTask(task);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    break;
+                    if (!running) {
+                        break;
+                    }
                 }
             }
         }, "fallen.lib.worker");
@@ -49,7 +51,9 @@ public class InterMethodExecutor {
                     guardQueue.waitA(50);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    break;
+                    if (!running) {
+                        break;
+                    }
                 }
             }
         }, "fallen.lib.guard");
@@ -111,17 +115,19 @@ public class InterMethodExecutor {
 
     public void shutdown() {
         running = false;
+
         worker.interrupt();
         guard.interrupt();
-        manager = null;
-        taskQueue = null;
-        guardQueue = null;
+
         try {
-            worker.join(1000);
-            guard.join(1000);
+            worker.join();
+            guard.join();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        manager = null;
+        taskQueue = null;
+        guardQueue = null;
     }
 
     class Task<R> {

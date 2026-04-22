@@ -15,4 +15,6 @@ public interface IAsyncWorker {
     void addTask(String id, Callable<?> call) throws InterruptedException;
 
     void addTaskExpire(String id, Callable<?> call, IExpirationCheck checkExpire) throws InterruptedException;
+
+    void shutDown();
 }

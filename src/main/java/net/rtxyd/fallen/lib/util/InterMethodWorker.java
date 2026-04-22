@@ -9,8 +9,14 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
-public class InterMethodAsyncWorker implements ISingleUseAsyncWorker {
+public class InterMethodWorker implements ISingleUseAsyncWorker {
     private final InterMethodExecutor EXECUTOR = new InterMethodExecutor();
+
+    private InterMethodWorker(){};
+
+    public static ISingleUseAsyncWorker create() {
+        return new InterMethodWorker();
+    }
 
     @Override
     public void addTask(String name, Callable<?> call) throws InterruptedException {
@@ -22,12 +28,20 @@ public class InterMethodAsyncWorker implements ISingleUseAsyncWorker {
         EXECUTOR.submitExpire(name, call, checkExpire);
     }
 
+    /**
+     * Use {@link InterMethodWorker#readAndBurn(String, Consumer)}
+     */
     @Override
+    @Deprecated
     public <T> Optional<T> getResult(String name, Consumer<Exception> processEx) {
         return readAndBurn(name, processEx);
     }
 
+    /**
+     * Use {@link InterMethodWorker#readAndBurnOrThrow(String)}
+     */
     @Override
+    @Deprecated
     public <T> T getResultOrThrow(String id) {
         return readAndBurnOrThrow(id);
     }
@@ -55,5 +69,10 @@ public class InterMethodAsyncWorker implements ISingleUseAsyncWorker {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void shutDown() {
+        EXECUTOR.shutdown();
     }
 }
