@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "min_version": "1.3.2",
+  "package": "net.rtxyd.fallen.lib.runtime.forgemod.patch",
+  "fallen_patches": [
+    "PatchAffixHelper"
+  ]
+}

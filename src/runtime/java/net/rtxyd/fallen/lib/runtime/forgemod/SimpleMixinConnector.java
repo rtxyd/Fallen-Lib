@@ -49,7 +49,7 @@ public class SimpleMixinConnector implements IMixinConnector {
             }
         }
         if (isApothExist) {
-            Mixins.addConfiguration(FallenLib.MODID + ".categoryfix.mixins.json");
+            Mixins.addConfiguration(FallenLib.MODID + ".apoth.mixins.json");
             if (emmitExtraGemBonuses) {
                 Mixins.addConfiguration(FallenLib.MODID + ".extragembonuses.mixins.json");
             }
