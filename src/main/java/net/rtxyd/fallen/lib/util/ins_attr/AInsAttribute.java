@@ -15,6 +15,8 @@ public abstract class AInsAttribute<I> {
     private float multiplyFinal;
     private float addFinal;
     private float setFinal;
+    private boolean hasSetBase;
+    private boolean hasSetFinal;
 
     public AInsAttribute(I instance, Map<String, InsAttributeModifier> modifiers, float initBase, float initFinal) {
         this.instance = instance;
@@ -56,7 +58,7 @@ public abstract class AInsAttribute<I> {
     protected final void calc(InsAttributeModifier modifier) {
         float value = modifier.getValue();
         switch (modifier.getType()) {
-            case MULTIPLY_BASE -> {
+            case ADD_MULTIPLIED_BASE -> {
                 this.calcMultiplyBase(value);
             }
             case ADD_BASE -> {
@@ -64,8 +66,9 @@ public abstract class AInsAttribute<I> {
             }
             case SET_BASE -> {
                 this.calcSetBase(value);
+                this.hasSetBase = true;
             }
-            case MULTIPLY_FINAL -> {
+            case ADD_MULTIPLIED_FINAL -> {
                 this.calcMultiplyFinal(value);
             }
             case ADD_FINAL -> {
@@ -73,6 +76,7 @@ public abstract class AInsAttribute<I> {
             }
             case SET_FINAL -> {
                 this.calcSetFinal(value);
+                this.hasSetFinal = true;
             }
             case NONE -> {}
             default -> {
@@ -88,8 +92,8 @@ public abstract class AInsAttribute<I> {
     }
 
     protected final void computeFinal() {
-        calcSetBase(initBase * multiplyBase + addBase);
-        calcSetFinal(setBase * multiplyFinal + addFinal);
+        calcSetBase(initBase * Math.max(0, multiplyBase) + addBase);
+        calcSetFinal(setBase * Math.max(0, multiplyFinal) + addFinal);
     }
 
     protected final void calcMultiplyBase(float value) {
@@ -101,7 +105,7 @@ public abstract class AInsAttribute<I> {
     }
 
     protected final void calcSetBase(float value) {
-        if (this.setBase < value) {
+        if (this.setBase < value || !this.hasSetBase) {
             this.setBase = value;
         }
     }
@@ -115,7 +119,7 @@ public abstract class AInsAttribute<I> {
     }
 
     protected final void calcSetFinal(float value) {
-        if (this.setFinal < value) {
+        if (this.setFinal < value || !this.hasSetFinal) {
             this.setFinal = value;
         }
     }

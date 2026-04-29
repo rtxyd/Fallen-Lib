@@ -27,8 +27,7 @@ public class AffixHelperMixin {
             index = 2)
     private static Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> hookCacheUpdate(Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> deserializer) {
         return stack -> {
-            Map<DynamicHolder<? extends Affix>, AffixInstance> affixes = deserializer.apply(stack);
-            AffixCacheRefreshEvent event = new AffixCacheRefreshEvent(affixes, stack);
+            AffixCacheRefreshEvent event = new AffixCacheRefreshEvent(deserializer, stack);
             MinecraftForge.EVENT_BUS.post(event);
             return event.getAffixes();
         };

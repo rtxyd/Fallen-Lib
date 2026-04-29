@@ -172,7 +172,7 @@ public class PatchEntryHelper {
             targets = new FallenPatchEntry.Targets();
         } else {
             targets = new FallenPatchEntry.Targets();
-            List<String> exact = tarData.getWithDefaut("exact", List.of());
+            List<String> exact = tarData.getWithDefaut("value", List.of());
             List<String> subclass = tarData.getWithDefaut("subclass", List.of());
             if (containsForbidden(exact) || containsForbidden(subclass)) {
                 FallenBootstrap.LOGGER.warn("Warning: {} targets mc or forge class, " +
@@ -286,7 +286,7 @@ public class PatchEntryHelper {
                     continue;
                 }
                 AnnotationData data = opt.get();
-                String type = data.getWithDefaut("type", InserterType.STANDARD.name());
+                String type = data.getWithDefaut("value", InserterType.STANDARD.name());
                 InserterType type1 = InserterType.valueOf(type);
                 if (type == null) {
                     FallenBootstrap.LOGGER.warn("Inserter type [{}] does not exist", type);
@@ -309,7 +309,13 @@ public class PatchEntryHelper {
                         int modifyArg = params.getWithDefaut("modifyArg", -1);
                         detail = new InserterMethodData.Params(args, modifyArg);
                     }
-                    List<String> options = data.getWithDefaut("options", List.of());
+                    AnnotationData optionsData = (AnnotationData) data.get("options");
+                    List<String> options;
+                    if (optionsData == null) {
+                        options = List.of();
+                    } else {
+                        options = optionsData.getWithDefaut("value", List.of());
+                    }
                     Set<PatchOption> patchOptions = new HashSet<>();
                     for (String option : options) {
                         patchOptions.add(PatchOption.valueOf(option));

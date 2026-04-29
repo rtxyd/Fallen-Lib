@@ -4,7 +4,7 @@ public @interface Targets {
     /**
      * This will target all given classes.
      */
-    Class<?>[] exact() default {};
+    Class<?>[] value() default {};
     /**
      * This will target all subclasses of given classes and their nest members.
      */

@@ -19,8 +19,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 @FallenPatch(
-        targets = @Targets(
-                exact = {AffixHelper.class}),
+        targets = @Targets(AffixHelper.class),
         inserters = {Inserters.class}
 )
 public class PatchAffixHelper implements IFallenPatch{

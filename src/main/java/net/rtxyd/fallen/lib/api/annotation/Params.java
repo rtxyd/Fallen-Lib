@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 @Target({})
 @Retention(RetentionPolicy.CLASS)
 public @interface Params {
-    int[] catchOuterArgs();
+    int[] catchOuterArgs() default {};
     int modifyArg() default -1;
 }

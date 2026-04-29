@@ -27,10 +27,10 @@ public class InsAttributeModifier {
 
     public static enum Type {
         NONE,
-        MULTIPLY_BASE,
+        ADD_MULTIPLIED_BASE,
         ADD_BASE,
         SET_BASE,
-        MULTIPLY_FINAL,
+        ADD_MULTIPLIED_FINAL,
         ADD_FINAL,
         SET_FINAL
     }

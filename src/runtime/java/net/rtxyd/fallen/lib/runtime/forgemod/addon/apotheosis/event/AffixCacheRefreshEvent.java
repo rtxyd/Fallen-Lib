@@ -8,17 +8,19 @@ import net.minecraftforge.eventbus.api.Event;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Fires both on client and server,
  * Fires before {@link AffixGetFinishEvent}
  */
 public class AffixCacheRefreshEvent extends Event {
+    private final Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> deserializer;
     private Map<DynamicHolder<? extends Affix>, AffixInstance> affixes;
     private final ItemStack stack;
 
-    public AffixCacheRefreshEvent(Map<DynamicHolder<? extends Affix>, AffixInstance> affixes, ItemStack stack) {
-        this.affixes = affixes;
+    public AffixCacheRefreshEvent(Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> deserializer, ItemStack stack) {
+        this.deserializer = deserializer;
         this.stack = stack;
     }
 
@@ -27,6 +29,9 @@ public class AffixCacheRefreshEvent extends Event {
     }
 
     public Map<DynamicHolder<? extends Affix>, AffixInstance> getAffixes() {
+        if (affixes == null) {
+            affixes = deserializer.apply(stack);
+        }
         return affixes;
     }
 

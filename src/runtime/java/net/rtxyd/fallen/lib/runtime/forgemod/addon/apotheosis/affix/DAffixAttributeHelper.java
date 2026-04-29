@@ -7,6 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.event.AffixCacheRefreshEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ItemStackCakyHandler;
+import net.rtxyd.fallen.lib.util.IObjectCaky;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,11 +26,11 @@ public class DAffixAttributeHelper {
     private static void nGetDSystem(ItemStack stack,
                                                     Map<DynamicHolder<? extends Affix>, AffixInstance> affixes) {
         DAffixAttributeSystem n = getDefaultAffixAttributeSystem(stack, affixes);
-        ItemStackCakyHandler.resolve(stack, DAFFIX_SYS, i -> n.updateWith(affixes), i -> REFRESHER1.get().incrementAndGet());
+        ItemStackCakyHandler.resolveWith(stack, DAFFIX_SYS, IObjectCaky.Type.MANUAL, i -> n.updateWith(affixes), i -> REFRESHER1.get().incrementAndGet());
     }
 
     public static DAffixAttributeSystem getDefaultAffixAttributeSystem(ItemStack stack, Map<DynamicHolder<? extends Affix>, AffixInstance> affixes) {
-        return ItemStackCakyHandler.resolve(stack, DAFFIX_SYS, i -> new DAffixAttributeSystem(affixes), i -> REFRESHER1.get().get());
+        return ItemStackCakyHandler.resolveWith(stack, DAFFIX_SYS, IObjectCaky.Type.MANUAL,i -> new DAffixAttributeSystem(affixes), i -> REFRESHER1.get().get());
     }
 
     private static void refreshDAffixSys(AffixCacheRefreshEvent event) {

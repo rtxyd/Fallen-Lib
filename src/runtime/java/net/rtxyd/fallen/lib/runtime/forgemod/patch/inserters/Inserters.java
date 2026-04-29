@@ -17,7 +17,7 @@ import net.rtxyd.fallen.lib.util.patch.InserterType;
 import java.util.HashMap;
 
 public class Inserters {
-    @FallenInserter(type = InserterType.BEFORE_MODIFY_ARG, params = @Params(catchOuterArgs = {0}, modifyArg = 1))
+    @FallenInserter(value = InserterType.BEFORE_MODIFY_ARG, params = @Params(catchOuterArgs = {0}, modifyArg = 1))
     @Notes(argTypes = {ItemStack.class, DynamicHolder.class, AffixInstance.class}, receiverType = HashMap.class, retType = {})
     // 0 is item, 2 is affix instance
     // Map.put(DynamicHolder<? extends Affix>, AffixInstance)

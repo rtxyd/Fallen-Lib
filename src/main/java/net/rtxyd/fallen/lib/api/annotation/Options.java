@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Target({})
 @Retention(RetentionPolicy.CLASS)
 public @interface Options {
-    PatchOption[] options() default {};
+    PatchOption[] value() default {};
 }

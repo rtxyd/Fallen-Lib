@@ -14,6 +14,10 @@
 - Refactor `@FallenInserter` annotation
 - `IInsAttributeSystem` add and remove modifier
 - Implement `ISingeUseAsyncWorker`
+- Implement `FinalObjectCaky` \ `ManualObjectCaky`
+- Add `InsAttributeModifier` two flags indicate "setFinal" and "setBase" exist
+- Expand the `InsAttributeModifier` type with `ADD_MULTIPLIED_BASE` and `ADD_MULTIPLIED_FINAL`
+- API change, `FallenInserter` @type -> value / @options -> value / @targets -> value
 
 #### Runtime.forgemod
 - Add unsupported operation checks and fix bugs in `AbstractRegistryBoundPacketPayload` and `AbstractPacketBoundRegistry`

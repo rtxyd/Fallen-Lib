@@ -14,9 +14,9 @@ public @interface FallenInserter {
     /**
      * Type of this inserter
      */
-    InserterType type() default InserterType.STANDARD;
+    InserterType value() default InserterType.STANDARD;
 
-    Params params();
+    Params params() default @Params;
 
     Options options() default @Options;
 }
