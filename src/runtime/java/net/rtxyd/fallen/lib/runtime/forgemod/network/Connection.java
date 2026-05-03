@@ -12,7 +12,6 @@ import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.ExtraGemBonusRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.IPacketBoundRegistry;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
