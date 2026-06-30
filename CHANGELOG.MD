@@ -2,6 +2,13 @@
 
 ## 1.4
 ---
+### 1.4.0.2
+- BeforeModifyArgInserterHelper, fix a bug causing if there's no "modifyArg", null point when get store opcode
+- AInsAttribute, now reusing the instance to output 2 times won't be double-applied
+- AInsAttribute, now allow to access some new fields like "hasSetBase".
+- Inserters, "hookAffixApply" now catches correct arg.
+- Mark "ItemStackCakyHandler.resolve" as Deprecated
+
 ### 1.4.0
 #### Core
 - Rewrite most standard inserter logic.

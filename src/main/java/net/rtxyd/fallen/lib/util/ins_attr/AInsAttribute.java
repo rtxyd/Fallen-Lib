@@ -12,9 +12,11 @@ public abstract class AInsAttribute<I> {
     private float multiplyBase;
     private float addBase;
     private float setBase;
+    private float setBaseCalc;
     private float multiplyFinal;
     private float addFinal;
     private float setFinal;
+    private float setFinalCalc;
     private boolean hasSetBase;
     private boolean hasSetFinal;
 
@@ -38,7 +40,8 @@ public abstract class AInsAttribute<I> {
         this.multiplyFinal = 1.0f;
         this.addFinal = 0;
         this.setFinal = initFinal;
-        clearModifier();
+        this.hasSetBase = false;
+        this.hasSetFinal = false;
     }
 
     public final void addModifier(String name, InsAttributeModifier modifier) {
@@ -88,12 +91,16 @@ public abstract class AInsAttribute<I> {
     public I output(BiFunction<I, Float, I> function) {
         modifiers.values().forEach(this::calc);
         computeFinal();
-        return function.apply(instance, setFinal);
+        I result = function.apply(instance, setFinal);
+        reset();
+        return result;
     }
 
     protected final void computeFinal() {
-        calcSetBase(initBase * Math.max(0, multiplyBase) + addBase);
-        calcSetFinal(setBase * Math.max(0, multiplyFinal) + addFinal);
+        calcSetBaseCalc();
+        calcSetBase(setBaseCalc);
+        calcSetFinalCalc();
+        calcSetFinal(setFinalCalc);
     }
 
     protected final void calcMultiplyBase(float value) {
@@ -122,5 +129,21 @@ public abstract class AInsAttribute<I> {
         if (this.setFinal < value || !this.hasSetFinal) {
             this.setFinal = value;
         }
+    }
+
+    protected final void calcSetBaseCalc() {
+        this.setBaseCalc = initBase * Math.max(0, multiplyBase) + addBase;
+    }
+
+    protected final void calcSetFinalCalc() {
+        this.setFinalCalc = setBase * Math.max(0, multiplyFinal) + addFinal;
+    }
+
+    public final boolean hasSetBase() {
+        return hasSetBase;
+    }
+
+    public final boolean hasSetFinal() {
+        return hasSetFinal;
     }
 }

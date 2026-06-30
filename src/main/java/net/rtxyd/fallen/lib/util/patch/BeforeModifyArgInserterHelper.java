@@ -234,8 +234,10 @@ public final class BeforeModifyArgInserterHelper extends AbstractInserterHelper 
             localsMax += 1;
             if (modifyReceiver) {
                 computeModifyArg(list, Opcodes.ASTORE, receiverSlot);
-            } else {
+            } else if (targetType != null){
                 computeModifyArg(list, getStoreOpcode(targetType), paramSlots[modifyArgOrdinal]);
+            } else {
+                computeModifyArg(list, Opcodes.ACONST_NULL, -1);
             }
         } else {
             computeModifyArg(list, getStoreOpcode(targetType), paramSlots[modifyArgOrdinal]);
@@ -250,10 +252,16 @@ public final class BeforeModifyArgInserterHelper extends AbstractInserterHelper 
 
     private void computeModifyArg(InsnList list, int opcode, int modifySlot) {
         list.add(loadHookParamsAndInvoke());
+        if (opcode == Opcodes.ACONST_NULL) {
+            ignoreModifyArg = true;
+        }
         if (!hookReturnVoid) {
             if (ignoreModifyArg) {
                 PatchUtil.popValue(list, hookReturnType.getDescriptor());
             } else {
+                if (modifySlot < 0) {
+                    throw new IllegalArgumentException(String.format("Param slot for the to-modified arg [%s] is illegal, should be >= 0.", modifySlot));
+                }
                 if (!strictReturn) {
                     PatchUtil.replaceWithTypeAdaptation(list, hookReturnType.getDescriptor(), targetType.getDescriptor());
                 }
