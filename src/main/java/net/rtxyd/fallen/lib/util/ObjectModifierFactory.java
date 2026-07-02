@@ -145,7 +145,7 @@ public class ObjectModifierFactory {
             int count = 0;
             boolean filterAll = maxFilterMatches == -1;
             for (int i = 0; i < components.length; i++) {
-                if (!filterAll && count > maxFilterMatches) break;
+                if (!filterAll && count >= maxFilterMatches) break;
                 if (ignoredFieldName.test(components[i].getName())) {
                     isOK[i] = false;
                     count++;
