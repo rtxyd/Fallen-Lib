@@ -26,6 +26,8 @@ public class ObjectModifierFactory {
     private final Set<Class<?>> blackList = ConcurrentHashMap.newKeySet();
     // filter field name
     private final Predicate<String> ignoredFieldName;
+    // filter max matches count, -1 to filter all
+    private final int maxFilterMatches;
 
     public RecordComponent[] collectRecordComponents(Class<?> clazz) {
         return clazz.getRecordComponents();
@@ -42,18 +44,32 @@ public class ObjectModifierFactory {
     public ObjectModifierFactory(Predicate<String> ignoredFieldName) {
         this.fieldFilterCache = new ConcurrentHashMap<>();
         this.ignoredFieldName = ignoredFieldName;
+        this.maxFilterMatches = -1;
+    }
+
+    public ObjectModifierFactory(Predicate<String> ignoredFieldName, int maxFilterMatches) {
+        this.maxFilterMatches = maxFilterMatches;
+        if (maxFilterMatches < -1) {
+            throw new IllegalArgumentException("MaxFilterMatches should be -1 or above.");
+        }
+        this.fieldFilterCache = new ConcurrentHashMap<>();
+        this.ignoredFieldName = ignoredFieldName;
     }
 
     public ObjectModifierFactory copy(Predicate<String> newIgnore, EnumSet<CopyFlag> flags) {
         final boolean reuseFilter = newIgnore == null && flags.contains(CopyFlag.COPY_FIELD_FILTER);
-
+        final boolean resueMatches = flags.contains(CopyFlag.COPY_FILTER_MAX_MATCHES);
         if (flags.contains(CopyFlag.COPY_FILTER_CACHE) && !reuseFilter) {
             throw new IllegalArgumentException("COPY_FILTER_CACHE requires reusing the same filter");
         }
+        int matches = -1;
+        if (resueMatches) {
+            matches = maxFilterMatches;
+        }
 
         ObjectModifierFactory copy = reuseFilter
-                ? new ObjectModifierFactory(this.ignoredFieldName)
-                : new ObjectModifierFactory(Objects.requireNonNull(newIgnore));
+                ? new ObjectModifierFactory(this.ignoredFieldName, matches)
+                : new ObjectModifierFactory(Objects.requireNonNull(newIgnore), matches);
 
         if (flags.contains(CopyFlag.COPY_FILTER_CACHE)) {
             copy.fieldFilterCache.putAll(this.fieldFilterCache);
@@ -69,7 +85,8 @@ public class ObjectModifierFactory {
     public enum CopyFlag {
         COPY_FILTER_CACHE,
         COPY_BLACK_LIST,
-        COPY_FIELD_FILTER
+        COPY_FIELD_FILTER,
+        COPY_FILTER_MAX_MATCHES
     }
 
     /**
@@ -125,10 +142,13 @@ public class ObjectModifierFactory {
         boolean[] filterCache = fieldFilterCache.computeIfAbsent(clazz, c -> {
             boolean[] isOK = new boolean[components.length];
             Arrays.fill(isOK, true);
+            int count = 0;
+            boolean filterAll = maxFilterMatches == -1;
             for (int i = 0; i < components.length; i++) {
+                if (!filterAll && count > maxFilterMatches) break;
                 if (ignoredFieldName.test(components[i].getName())) {
                     isOK[i] = false;
-                    break;
+                    count++;
                 }
             }
             return isOK;

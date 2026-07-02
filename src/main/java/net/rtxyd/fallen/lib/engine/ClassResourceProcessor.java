@@ -21,7 +21,7 @@ class ClassResourceProcessor implements ResourceProcessor {
             ClassView cv = new ClassView(ClassView.SKIP_ANNOTATION);
             new ClassReader(is).accept(cv, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
             if (ctx.classIndex.add(r.path().replace(".class", ""), new ClassInfo(cv.superName, "0", cv.interfaces, cv.nestMembers)) != null) {
-                ResourceScanEngine.LOGGER.debug("Detected duplicated class [ {} ]", r.path().replace(".class", ""));
+                ResourceScanEngine.LOGGER.trace("Detected duplicated class [ {} ]", r.path().replace(".class", ""));
             }
         } catch (Exception e) {
             if (loggerFlag) {
