@@ -12,12 +12,14 @@ import dev.shadowsoffire.apotheosis.adventure.socket.gem.bonus.GemBonus;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.fml.ModList;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.network.AbstractPacketBoundRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.network.ClientBoundSyncExtraGemBonusesPacket;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
 import java.util.List;
+import java.util.function.Function;
 
 public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemBonusRegistry.ExtraGemBonus, ClientBoundSyncExtraGemBonusesPacket.Begin, ClientBoundSyncExtraGemBonusesPacket, ClientBoundSyncExtraGemBonusesPacket.End> {
 
@@ -32,6 +34,12 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
     @Override
     protected void registerBuiltinCodecs() {
         this.registerCodec(ResourceLocation.fromNamespaceAndPath(FallenLib.MODID, "extra_gem_bonus"), ExtraGemBonus.CODEC);
+
+        // backward compatibility for lib version 1.3.2
+        if (ModList.get().isLoaded("fallen_gems_affixes")) {
+            this.registerCodec(ResourceLocation.fromNamespaceAndPath("fallen_gems_affixes", "extra_gem_bonus"), Codec.of(ExtraGemBonus.CODEC, ExtraGemBonus.CODEC));
+        }
+        //end
     }
 
     @Override

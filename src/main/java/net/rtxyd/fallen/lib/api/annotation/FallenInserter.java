@@ -14,7 +14,10 @@ public @interface FallenInserter {
     /**
      * Type of this inserter
      */
-    InserterType value() default InserterType.STANDARD;
+    InserterType value() default InserterType.NONE;
+
+    @Deprecated
+    InserterType type() default InserterType.NONE;
 
     Params params() default @Params;
 

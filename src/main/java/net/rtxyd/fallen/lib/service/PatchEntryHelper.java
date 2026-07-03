@@ -173,6 +173,14 @@ public class PatchEntryHelper {
         } else {
             targets = new FallenPatchEntry.Targets();
             List<String> exact = tarData.getWithDefaut("value", List.of());
+
+            // backward compatibility for lib version 1.3.2
+            List<String> oldExact = tarData.getWithDefaut("exact", List.of());
+            if (!oldExact.equals(List.of())) {
+                exact.addAll(oldExact);
+            }
+            // end
+
             List<String> subclass = tarData.getWithDefaut("subclass", List.of());
             if (containsForbidden(exact) || containsForbidden(subclass)) {
                 FallenBootstrap.LOGGER.warn("Warning: {} targets mc or forge class, " +
@@ -286,7 +294,19 @@ public class PatchEntryHelper {
                     continue;
                 }
                 AnnotationData data = opt.get();
-                String type = data.getWithDefaut("value", InserterType.STANDARD.name());
+                String type = data.getWithDefaut("value", InserterType.NONE.name());
+
+                // backward compatibility for lib version 1.3.2
+                String oldType = data.getWithDefaut("type", InserterType.NONE.name());
+                String noneType = InserterType.NONE.name();
+                if (!oldType.equals(noneType) && type.equals(noneType)) {
+                    type = oldType;
+                }
+                if (type == InserterType.NONE.name()) {
+                    throw new UnsupportedOperationException(String.format("Must assign an inserter type for [ %s ]", qualifiedName + "." + mn.name + mn.desc));
+                }
+                // end
+
                 InserterType type1 = InserterType.valueOf(type);
                 if (type == null) {
                     FallenBootstrap.LOGGER.warn("Inserter type [{}] does not exist", type);

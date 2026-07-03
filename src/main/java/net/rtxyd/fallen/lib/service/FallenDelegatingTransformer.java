@@ -47,7 +47,7 @@ public final class FallenDelegatingTransformer implements ITransformer<ClassNode
             try {
                 patchContext.setEntryInserters(e.getInserter());
                 patchContext.setClassNode(cn);
-                t.apply(patchContext);
+                t.apply(cn, patchContext);
                 if (cn == null) {
                     throw new NullPointerException("ClassNode is set to null!");
                 }

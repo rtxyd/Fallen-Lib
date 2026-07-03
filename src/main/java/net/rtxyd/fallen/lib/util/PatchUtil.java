@@ -12,9 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.*;
 
 public class PatchUtil {
@@ -237,6 +235,28 @@ public class PatchUtil {
             case Type.OBJECT: return new InsnNode(Opcodes.ACONST_NULL);
             default: throw new IllegalArgumentException("Unknown type: " + t);
         }
+    }
+
+    /**
+     * For old version 1.3.2
+     */
+    @Deprecated
+    public static void insertMethodHook(ClassNode classNode,
+                                        MethodNode methodNode,
+                                        Predicate<? super AbstractInsnNode> filter,
+                                        InserterType type,
+                                        MethodInsnNode hookMethod,
+                                        boolean replaceReturn,
+                                        boolean debugMode) {
+        Set<PatchOption> options = new HashSet<>();
+        if (replaceReturn) {
+            options.add(PatchOption.REPLACE_RETURN);
+        }
+        if (debugMode) {
+            options.add(PatchOption.DEBUG_MODE);
+        }
+        InserterMethodData methodData = new InserterMethodData(hookMethod, type, InserterMethodData.Params.createDefault(), options);
+        insertMethodHook(classNode, methodNode, filter, methodData);
     }
 
     public static void insertMethodHook(ClassNode classNode,

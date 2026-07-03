@@ -32,7 +32,7 @@ public class PatchAffixHelper implements IFallenPatch{
     @Override
     public void apply(IFallenPatchContext ctx) {
         ClassNode cn = ctx.getClassNode();
-        InserterMethodData hookData = ctx.getFallenInserter(
+        InserterMethodData hookData = ctx.getInserterMethodData(
                 InserterKey.of("net.rtxyd.fallen.lib.runtime.forgemod.patch.inserters.Inserters",
                         "hookAffixApply",
                         InserterType.BEFORE_MODIFY_ARG));

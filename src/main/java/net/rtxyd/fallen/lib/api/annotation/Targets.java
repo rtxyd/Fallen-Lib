@@ -6,6 +6,11 @@ public @interface Targets {
      */
     Class<?>[] value() default {};
     /**
+     * Old api compatibility
+     */
+    @Deprecated
+    Class<?>[] exact() default {};
+    /**
      * This will target all subclasses of given classes and their nest members.
      */
     Class<?>[] subclass() default {};

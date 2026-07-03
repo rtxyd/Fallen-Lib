@@ -3,6 +3,7 @@ package net.rtxyd.fallen.lib.util.patch;
 public enum InserterType {
 
 
+    NONE(""),
     /**
      * standard is for modifying return value, or just catch all args, receiver, and return value, can catch outer args,
      * if the return value is void, may cause an exception

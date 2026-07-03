@@ -4,6 +4,7 @@ import net.rtxyd.fallen.lib.type.service.IFallenPatchContext;
 import net.rtxyd.fallen.lib.util.patch.InserterKey;
 import net.rtxyd.fallen.lib.util.patch.InserterMethodData;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 
 import java.util.*;
 
@@ -48,8 +49,17 @@ public class DefaultPatchContext implements IFallenPatchContext {
     }
 
     @Override
-    public InserterMethodData getFallenInserter(InserterKey inserterKey) {
+    public InserterMethodData getInserterMethodData(InserterKey inserterKey) {
         return currentEntryInserters.get(inserterKey.combine());
+    }
+
+    // use getInserterMethodData
+    @Deprecated
+    @Override
+    public MethodInsnNode getFallenInserter(InserterKey inserterKey) {
+        InserterMethodData meta = getInserterMethodData(inserterKey);
+        if (meta == null) return null;
+        return meta.getInserterMethod();
     }
 
     void setEntryInserters(Map<String, InserterMethodData> inserter) {
