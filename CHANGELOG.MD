@@ -2,6 +2,13 @@
 
 ## 1.4
 ---
+### 1.4.0.3
+#### Core
+- ObjectModifierFactory, introduce maxFilterMatches.
+- ClassResourceProcessor, debug log to trace log, reducing debug log spam
+- Introduce ItemAttributeModifierFactory, which can operate modifiers easier
+- Backward compatibility for lib version 1.3.2
+
 ### 1.4.0.2
 - BeforeModifyArgInserterHelper, fix a bug causing if there's no "modifyArg", null point when get store opcode
 - AInsAttribute, now reusing the instance to output 2 times won't be double-applied
