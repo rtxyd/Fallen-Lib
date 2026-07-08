@@ -1,16 +1,12 @@
 package net.rtxyd.fallen.lib.runtime.forgemod;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.affix.DAffixAttributeHelper;
 import net.rtxyd.fallen.lib.runtime.forgemod.compat.fga.FGAVersionStage;
 import net.rtxyd.fallen.lib.runtime.forgemod.network.Connection;
 import org.apache.logging.log4j.LogManager;
@@ -39,7 +35,6 @@ public class FallenLib {
                     FallenLib.LOGGER.info("Register fallen lib connection.");
                     Connection.register();
                 }
-                DAffixAttributeHelper.register();
             }
         });
     }
