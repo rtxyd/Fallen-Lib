@@ -2,6 +2,10 @@
 
 ## 1.4
 ---
+### 1.4.0.4
+#### Runtime.forgemod
+- Add LivingEntityCakyHandler
+
 ### 1.4.0.3
 #### Core
 - ObjectModifierFactory, introduce maxFilterMatches.

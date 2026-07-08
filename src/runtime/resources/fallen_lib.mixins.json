@@ -5,6 +5,7 @@
   "refmap": "fallen_lib.refmap.json",
   "mixins": [
     "ItemStackMixin",
+    "LivingEntityMixin",
     "SlotMixin"
   ],
   "client": [
