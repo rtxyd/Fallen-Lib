@@ -29,9 +29,8 @@ import net.rtxyd.fallen.lib.runtime.forgemod.util.IPacketBoundRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.Serialization;
 import org.apache.logging.log4j.Logger;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -202,6 +201,28 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     protected abstract void registerBuiltinCodecs();
     protected final void registerFallbackCodec(Codec<E> fallback) {
         this.fallbackCodec = fallback;
+    }
+
+    public Set<ResourceLocation> getKeys() {
+        return this.registry.keySet();
+    }
+
+    public Collection<E> getValues() {
+        return this.registry.values();
+    }
+
+    @Nullable
+    public E getValue(ResourceLocation key) {
+        return this.registry.get(key);
+    }
+
+    @Nullable
+    public ResourceLocation getKey(E value) {
+        return this.registry.inverse().get(value);
+    }
+
+    public E getOrDefault(ResourceLocation key, E defValue) {
+        return this.registry.getOrDefault(key, defValue);
     }
 
     // serverside
