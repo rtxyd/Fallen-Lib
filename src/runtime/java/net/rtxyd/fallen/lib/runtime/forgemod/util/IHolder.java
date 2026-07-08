@@ -2,8 +2,10 @@ package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import org.jetbrains.annotations.Nullable;
 
-public interface IHolder<C, T> {
-    C getClassifier();
+import java.util.function.Supplier;
+
+public interface IHolder<C, T> extends Supplier<T> {
+    C fallen_lib$getClassifier();
     T get();
     static <C, T> IHolder<C, T> create(C c, T t) {
         return new SimpleHolder<>(c, t);
@@ -18,7 +20,7 @@ public interface IHolder<C, T> {
         }
 
         @Override
-        public C getClassifier() {
+        public C fallen_lib$getClassifier() {
             return classifier;
         }
 

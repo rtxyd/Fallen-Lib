@@ -5,6 +5,8 @@
 ### 1.4.0.4
 #### Runtime.forgemod
 - Add LivingEntityCakyHandler
+- Complement AbstractPacketBoundRegistry to have holder
+- Add BoundHolder
 
 ### 1.4.0.3
 #### Core

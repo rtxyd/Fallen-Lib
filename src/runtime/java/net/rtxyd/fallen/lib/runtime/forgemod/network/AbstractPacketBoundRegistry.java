@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -24,13 +25,12 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.server.ServerLifecycleHooks;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.IPacketBoundRegistry;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.Serialization;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.*;
 import org.apache.logging.log4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -38,7 +38,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         PB extends AbstractRegistryBoundPacketPayload.IBegin<P>,
         P extends AbstractRegistryBoundPacketPayload<E>,
         PE extends AbstractRegistryBoundPacketPayload.IEnd<P>>
-        extends SimpleJsonResourceReloadListener implements IPacketBoundRegistry<E>, ICodecProvider<E> {
+        extends SimpleJsonResourceReloadListener implements IPacketBoundRegistry<E>, ICodecProvider<E>, IHolderOwner<ResourceLocation, E> {
 
     protected final String path;
     private final Logger logger;
@@ -49,6 +49,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     protected final boolean useTypeIdAsKey;
 
     protected BiMap<ResourceLocation, E> registry = ImmutableBiMap.of();
+    protected Map<ResourceLocation, BoundHolder<E>> holders = new ConcurrentHashMap<>();
     @SuppressWarnings("rawtypes")
     private static final Map<Class<? extends AbstractPacketBoundRegistry>, AbstractPacketBoundRegistry> SINGLETONS = new HashMap<>();
 
@@ -56,6 +57,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     private Codec<E> fallbackCodec = null;
 
     protected final Map<ResourceLocation, E> temp = new HashMap<>();
+
     Constructors3<E, PB, P, PE> packetConstructors;
     private Codec<E> singletonBoundCodec;
 
@@ -212,6 +214,11 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     @Nullable
+    public E fallen_lib$getValue(ResourceLocation key) {
+        return getValue(key);
+    }
+
+    @Nullable
     public E getValue(ResourceLocation key) {
         return this.registry.get(key);
     }
@@ -223,6 +230,19 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     public E getOrDefault(ResourceLocation key, E defValue) {
         return this.registry.getOrDefault(key, defValue);
+    }
+
+    public BoundHolder<E> holder(ResourceLocation id) {
+        return this.holders.computeIfAbsent(id, r -> new BoundHolder<>(r, this));
+    }
+
+    public BoundHolder<E> holder(E t) {
+        ResourceLocation key = getKey(t);
+        return holder(key == null ? BoundHolder.EMPTY : key);
+    }
+
+    public BoundHolder<E> emptyHolder() {
+        return holder(BoundHolder.EMPTY);
     }
 
     // serverside
@@ -243,11 +263,13 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     @Override
     public void beginReload() {
         this.registry = HashBiMap.create();
+        this.holders.values().forEach(BoundHolder::reset);
     }
 
     @Override
     public void onReload() {
         this.registry = ImmutableBiMap.copyOf(this.registry);
+        this.holders.values().forEach(BoundHolder::bind);
     }
 
     @Override
@@ -290,6 +312,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     public final void applyTemp() {
         temp.forEach((k,v)->{
             registry.put(k,v);
+            this.holders.computeIfAbsent(k, r -> new BoundHolder<>(r, this));
         });
     }
 
