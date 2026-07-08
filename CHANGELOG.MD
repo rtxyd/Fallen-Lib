@@ -7,6 +7,7 @@
 - Add LivingEntityCakyHandler
 - Complement AbstractPacketBoundRegistry to have holder
 - Add BoundHolder
+- Remove default attribute system
 
 ### 1.4.0.3
 #### Core
