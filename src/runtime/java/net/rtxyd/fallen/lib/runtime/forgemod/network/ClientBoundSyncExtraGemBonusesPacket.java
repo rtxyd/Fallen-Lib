@@ -22,7 +22,7 @@ public class ClientBoundSyncExtraGemBonusesPacket extends AbstractRegistryBoundP
         super(path, extraGemBonus);
     }
 
-    public static class Begin implements AbstractRegistryBoundPacketPayload.IBegin<ClientBoundSyncExtraGemBonusesPacket> {
+    public static class Begin implements AbstractRegistryBoundPacketPayload.IBegin {
         public static final Type<Begin> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "egb_cl_begin");
 
         @Override
@@ -36,7 +36,7 @@ public class ClientBoundSyncExtraGemBonusesPacket extends AbstractRegistryBoundP
         }
     }
 
-    public static class End implements AbstractRegistryBoundPacketPayload.IEnd<ClientBoundSyncExtraGemBonusesPacket> {
+    public static class End implements AbstractRegistryBoundPacketPayload.IEnd {
         public static final Type<End> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "egb_cl_end");
 
         @Override

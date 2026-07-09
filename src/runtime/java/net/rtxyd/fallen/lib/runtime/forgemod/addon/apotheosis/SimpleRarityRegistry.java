@@ -1,6 +1,8 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SimpleRarityRegistry<C, T> {
     protected final Map<C, AFallenRarity<C, T>> rarityMap = new LinkedHashMap<>();

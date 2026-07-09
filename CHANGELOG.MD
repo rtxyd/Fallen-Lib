@@ -8,6 +8,7 @@
 - Complement AbstractPacketBoundRegistry to have holder
 - Add BoundHolder
 - Remove default attribute system
+- Implement DefaultPacketBoundRegistry and DefaultRegistryBoundPacketPayload
 
 ### 1.4.0.3
 #### Core

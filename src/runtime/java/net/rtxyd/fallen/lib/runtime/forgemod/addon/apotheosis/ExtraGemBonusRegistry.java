@@ -19,7 +19,6 @@ import net.rtxyd.fallen.lib.runtime.forgemod.network.ClientBoundSyncExtraGemBonu
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
 import java.util.List;
-import java.util.function.Function;
 
 public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemBonusRegistry.ExtraGemBonus, ClientBoundSyncExtraGemBonusesPacket.Begin, ClientBoundSyncExtraGemBonusesPacket, ClientBoundSyncExtraGemBonusesPacket.End> {
 

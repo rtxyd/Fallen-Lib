@@ -32,7 +32,7 @@ public interface IPacketBoundRegistry<REGISTRY_ITEM extends ICodecProvider<REGIS
     void applyTemp();
 
     public static record Constructors3<REGISTRY_ITEM extends ICodecProvider<REGISTRY_ITEM>,
-    BEGIN extends AbstractRegistryBoundPacketPayload.IBegin<PROCESS>,
+    BEGIN extends AbstractRegistryBoundPacketPayload.IBegin,
     PROCESS extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>,
-    END extends AbstractRegistryBoundPacketPayload.IEnd<PROCESS>>(Supplier<BEGIN> beginConstructor, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, Supplier<END> endConstructor) {}
+    END extends AbstractRegistryBoundPacketPayload.IEnd>(Supplier<BEGIN> beginConstructor, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, Supplier<END> endConstructor) {}
 }

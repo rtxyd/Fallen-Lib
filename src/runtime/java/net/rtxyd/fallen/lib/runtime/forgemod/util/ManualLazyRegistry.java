@@ -2,7 +2,9 @@ package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ManualLazyRegistry<H, T> {
     private final Map<ResourceLocation, ManualLazy<H, T>> lazies = new HashMap<>();

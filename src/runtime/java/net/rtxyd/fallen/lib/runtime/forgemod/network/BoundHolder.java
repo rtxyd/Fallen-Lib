@@ -1,6 +1,9 @@
-package net.rtxyd.fallen.lib.runtime.forgemod.util;
+package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.IHolder;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.IHolderOwner;
 
 import java.util.Objects;
 
@@ -12,7 +15,7 @@ public class BoundHolder<T extends ICodecProvider<T>> implements IHolder<Resourc
 
     private T value;
 
-    public BoundHolder(ResourceLocation id, IHolderOwner<ResourceLocation, T> owner) {
+    BoundHolder(ResourceLocation id, IHolderOwner<ResourceLocation, T> owner) {
         this.id = id;
         this.owner = owner;
     }

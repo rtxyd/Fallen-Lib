@@ -3,14 +3,19 @@ package net.rtxyd.fallen.lib.runtime.forgemod.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
+import net.rtxyd.fallen.lib.runtime.forgemod.SimpleMixinConnector;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.ExtraGemBonusRegistry;
+import net.rtxyd.fallen.lib.runtime.forgemod.compat.fga.FGAVersionStage;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.GameLifecycleHelper;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
 import java.util.function.BiConsumer;
@@ -32,17 +37,65 @@ public class Connection {
         return packetId++;
     }
 
-    public static void register() {
+    private static void registerApoth() {
         registerRegistryBoundPacketPayloads(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
                 ClientBoundSyncExtraGemBonusesPacket.Begin.class,   ClientBoundSyncExtraGemBonusesPacket.Begin::new,    ClientBoundSyncExtraGemBonusesPacket.Begin::handle,
                 ClientBoundSyncExtraGemBonusesPacket.class,         ClientBoundSyncExtraGemBonusesPacket::new,          ClientBoundSyncExtraGemBonusesPacket::handle,
                 ClientBoundSyncExtraGemBonusesPacket.End.class,     ClientBoundSyncExtraGemBonusesPacket.End::new,      ClientBoundSyncExtraGemBonusesPacket.End::handle);
     }
 
+    public static void init(FMLCommonSetupEvent e) {
+        e.enqueueWork(() -> {
+            if (ModList.get().isLoaded("apotheosis")) {
+                if (SimpleMixinConnector.FGACheck == null || !SimpleMixinConnector.FGACheck.getStage().equals(FGAVersionStage.FL_ONE_TWO)) {
+                    FallenLib.LOGGER.info("Register fallen lib connection.");
+                    Connection.registerApoth();
+                }
+            }
+            registerInternal();
+        });
+    }
+
+    public static <I extends ICodecProvider<I>> void registerDefaultPacketBoundRegistry(DefaultPacketBoundRegistry<I> singleton) {
+        singleton.registerCommon();
+        singleton.initSingletonBoundCodec();
+        DefaultPacketBoundRegistry.registerDefaultSingleton(singleton);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void registerInternal() {
+        if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
+
+        INSTANCE.messageBuilder(DefaultRegistryBoundPacketPayload.Begin.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(DefaultRegistryBoundPacketPayload.Begin.DEFAULT_BUF_CODEC::encode)
+                .decoder(DefaultRegistryBoundPacketPayload.Begin.DEFAULT_BUF_CODEC::decode)
+                .consumerMainThread(DefaultRegistryBoundPacketPayload.Begin::handle).add();
+
+        INSTANCE.messageBuilder(DefaultRegistryBoundPacketPayload.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder((payload, buf) -> {
+                    var codec = GameLifecycleHelper.callIfPresent(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
+                    if (codec == null) return;
+                    codec.encode(payload, buf);
+                })
+                .decoder(t -> {
+                    var codec = GameLifecycleHelper.callIfPresent(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
+                    if (codec == null) return new DefaultRegistryBoundPacketPayload<>(null, null, "");
+                    return codec.decode(t);
+                })
+                .consumerMainThread(DefaultRegistryBoundPacketPayload::handle).add();
+
+        INSTANCE.messageBuilder(DefaultRegistryBoundPacketPayload.End.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(DefaultRegistryBoundPacketPayload.End.DEFAULT_BUF_CODEC::encode)
+                .decoder(DefaultRegistryBoundPacketPayload.End.DEFAULT_BUF_CODEC::decode)
+                .consumerMainThread(DefaultRegistryBoundPacketPayload.End::handle).add();
+
+        DefaultPacketBoundRegistry.registerSyncDefault();
+    }
+
     public static <I extends ICodecProvider<I>,
-            PB extends AbstractRegistryBoundPacketPayload.IBegin<P>,
+            PB extends AbstractRegistryBoundPacketPayload.IBegin,
             P extends AbstractRegistryBoundPacketPayload<I>,
-            PE extends AbstractRegistryBoundPacketPayload.IEnd<P>,
+            PE extends AbstractRegistryBoundPacketPayload.IEnd,
             R extends AbstractPacketBoundRegistry<I, PB, P, PE>>
     void registerRegistryBoundPacketPayloads(R singleton, FriendlyByteBufCodec<P> codec,
                                              Class<PB> begin, Supplier<PB> beginConstructor, BiConsumer<PB, Supplier<NetworkEvent.Context>> beginHandler,

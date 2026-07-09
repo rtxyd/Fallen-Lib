@@ -27,12 +27,13 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         this.registryItem = registryItem;
     }
 
+    @SuppressWarnings("unchecked")
     protected Codec<E> getBoundItemCodec() {
         var registry = getBoundRegistry(this.getClassAuto());
         if (registry == null) {
             throw new RuntimeException(String.format("Packet [%s] registry is not bound!", this.getClass()));
         }
-        return  registry.getCodec();
+        return (Codec<E>) registry.getCodec();
     };
 
     public final ResourceLocation getPath() {
@@ -42,8 +43,9 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         return registryItem;
     }
 
+    @SuppressWarnings("unchecked")
     public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-        getBoundRegistry(this.getClassAuto()).handleProcess(contextSupplier, this.getPath(), this.getItem());
+        ((AbstractPacketBoundRegistry<E, ?, ?, ?>)getBoundRegistry(this.getClassAuto())).handleProcess(contextSupplier, this.getPath(), this.getItem());
     }
 
     @SuppressWarnings("unchecked")
@@ -51,7 +53,7 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         return (Class<? extends AbstractRegistryBoundPacketPayload<E>>) this.getClass();
     }
 
-    static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin<C>, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd<C>>
+    static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
     void boundRegistrySingleton(Class<? extends AbstractRegistryBoundPacketPayload<A>> packetClass, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
         if (REGISTRY_SINGLETONS.putIfAbsent(packetClass, instance) != null) {
             throw new UnsupportedOperationException("Payload " + packetClass.getName() + " is already bound to a registry singleton!");
@@ -59,8 +61,8 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin<C>, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd<C>>
-    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<C> registryClass) {
+    public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
+    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<?> registryClass) {
         return (AbstractPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryClass);
     }
 
@@ -88,12 +90,12 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         };
     }
 
-    public static interface IBegin<T extends AbstractRegistryBoundPacketPayload<?>> extends IVanillaLikeCustomPacketPayload {
-        Class<T> getProcessClass();
+    public static interface IBegin extends IVanillaLikeCustomPacketPayload {
+        Class<?> getProcessClass();
 
         @SuppressWarnings({"unchecked", "rawtypes"})
-        static <T extends AbstractRegistryBoundPacketPayload<?>> Class<T> getProcessClassAuto(IBegin inst) {
-            return (Class<T>) inst.getProcessClass();
+        static  Class<?> getProcessClassAuto(IBegin inst) {
+            return (Class<?>) inst.getProcessClass();
         }
 
         @Override
@@ -102,12 +104,12 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         }
     }
 
-    public static interface IEnd<T extends AbstractRegistryBoundPacketPayload<?>> extends IVanillaLikeCustomPacketPayload {
-        Class<T> getProcessClass();
+    public static interface IEnd extends IVanillaLikeCustomPacketPayload {
+        Class<?> getProcessClass();
 
         @SuppressWarnings({"unchecked", "rawtypes"})
-        static <T extends AbstractRegistryBoundPacketPayload<?>> Class<T> getProcessClassAuto(IEnd inst) {
-            return (Class<T>) inst.getProcessClass();
+        static Class<?> getProcessClassAuto(IEnd inst) {
+            return inst.getProcessClass();
         }
 
         @Override

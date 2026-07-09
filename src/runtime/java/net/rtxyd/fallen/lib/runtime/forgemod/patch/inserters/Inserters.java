@@ -8,7 +8,6 @@ import net.minecraftforge.common.MinecraftForge;
 import net.rtxyd.fallen.lib.api.annotation.FallenInserter;
 import net.rtxyd.fallen.lib.api.annotation.Notes;
 import net.rtxyd.fallen.lib.api.annotation.Params;
-import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.event.AffixApplyEvent;
 import net.rtxyd.fallen.lib.type.util.patch.IInserterContext;
 import net.rtxyd.fallen.lib.util.INull;
