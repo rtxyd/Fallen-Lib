@@ -52,23 +52,6 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
         DEFAULT_SINGLETONS_BY_PATH.putIfAbsent(instance.path, instance);
     }
 
-    @Override
-    public final void syncClient(OnDatapackSyncEvent e) {
-        throw new UnsupportedOperationException("Registry[" + this.getClass() + "] should be synchronized in default process!");
-    }
-
-    public void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
-        super.handleBegin(contextSupplier);
-    }
-
-    public void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
-        super.handleProcess(contextSupplier, path, item);
-    }
-
-    public void handleEnd(Supplier<NetworkEvent.Context> contextSupplier) {
-        super.handleEnd(contextSupplier);
-    }
-
     static void registerSyncDefault() {
         MinecraftForge.EVENT_BUS.addListener(DefaultSyncer::syncDefault);
     }

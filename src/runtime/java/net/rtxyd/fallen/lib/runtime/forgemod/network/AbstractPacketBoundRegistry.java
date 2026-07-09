@@ -252,7 +252,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     // serverside
     @Override
-    public void syncClient(OnDatapackSyncEvent e) {
+    public final void syncClient(OnDatapackSyncEvent e) {
         if (packetConstructors == null) {
             throw new UnsupportedOperationException("Registry[" + this.getClass() + "] packet constructors are not initialized!");
         }
@@ -292,19 +292,19 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     public void validateItem(ResourceLocation loc, E item) {}
 
     @Override
-    public void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
+    public final void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
         contextSupplier.get().enqueueWork(this::beginSync);
     }
 
     @Override
-    public void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
+    public final void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
         contextSupplier.get().enqueueWork(() -> {
             this.registerTempEntry(path, item);
         });
     }
 
     @Override
-    public void handleEnd(Supplier<NetworkEvent.Context> contextSupplier) {
+    public final void handleEnd(Supplier<NetworkEvent.Context> contextSupplier) {
         if (ServerLifecycleHooks.getCurrentServer() != null) return;
         contextSupplier.get().enqueueWork(() -> {
             this.beginReload();
