@@ -62,6 +62,10 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
     }
 
     private void applyExtraGemBonuses() {
+        FallenLib.LOGGER.info("Current GemRegistry size [{}]", GemRegistry.INSTANCE.getKeys().size());
+        if (GemRegistry.INSTANCE.getKeys().isEmpty()) {
+            FallenLib.LOGGER.error("GemRegistry is empty, this may be a loading priority issue.");
+        }
         for (Gem gem : GemRegistry.INSTANCE.getValues()) {
             DynamicHolder<Gem> holder = GemRegistry.INSTANCE.holder(gem);
 
