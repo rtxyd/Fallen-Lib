@@ -7,7 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.network.PacketDistributor;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.GameLifecycleHelper;
@@ -21,7 +21,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> extends AbstractPacketBoundRegistry<E, DefaultRegistryBoundPacketPayload.Begin, DefaultRegistryBoundPacketPayload<E>, DefaultRegistryBoundPacketPayload.End> {
     protected FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<E>> defaultBufCodec;
@@ -74,16 +73,11 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
             ServerPlayer player = e.getPlayer();
             PacketDistributor.PacketTarget target = player == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(() -> player);
             DEFAULT_SINGLETONS.forEach((bufCodec, reg) -> {
-                try {
-                    GameLifecycleHelper.submitContextCall(CODEC_CONTEXT_KEY, () -> bufCodec);
-                    Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.Begin(reg.path));
-                    reg.registry.forEach((path, item) -> {
-                        Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
-                    });
-                    Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.End(reg.path));
-                } finally {
-                    GameLifecycleHelper.callAndRemoveIfPresent(CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
-                }
+                Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.Begin(reg.path));
+                reg.registry.forEach((path, item) -> {
+                    Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
+                });
+                Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.End(reg.path));
             });
         }
     }
@@ -96,7 +90,7 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
             this.defaultBufCodec = new FriendlyByteBufCodec<>() {
                 @Override
                 public void encode(@NotNull DefaultRegistryBoundPacketPayload<E> value, @NotNull FriendlyByteBuf buf) {
-                    String regPath = value.getRegistryPath();
+                    String regPath = value.getRegPath();
                     buf.writeInt(regPath.length());
                     buf.writeUtf(regPath);
                     buf.writeResourceLocation(value.getPath());

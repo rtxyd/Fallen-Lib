@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -62,6 +63,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     Constructors3<E, PB, P, PE> packetConstructors;
     private Codec<E> singletonBoundCodec;
+    private Codec<BoundHolder<E>> holderCodec;
 
     public AbstractPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(new Gson(), path);
@@ -73,6 +75,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         this.useTypeIdAsKey = useTypeIdAsKey;
         this.initSingletonBoundCodec();
         this.registerBuiltinCodecs();
+        this.holderCodec = ResourceLocation.CODEC.xmap(this::holder, BoundHolder::getId);
     }
 
     final void initPacketsConstructors(Constructors3<E, PB, P, PE> constructors) {
@@ -98,8 +101,8 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
     }
 
-    final void registerSync() {
-        MinecraftForge.EVENT_BUS.addListener(this::syncClient);
+    final void registerSync(EventPriority priority) {
+        MinecraftForge.EVENT_BUS.addListener(priority, this::syncClient);
     }
 
     @Override
@@ -144,6 +147,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         if (this.registry.containsKey(loc)) throw new UnsupportedOperationException("Duplicated id: [" + loc + "]");
         registerTempEntry(loc, item);
         this.registry.put(loc, item);
+        this.holders.computeIfAbsent(loc, a -> new BoundHolder<>(loc, this));
     }
 
     public boolean validate() {
@@ -152,6 +156,9 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         }
         if (!SINGLETONS.containsKey(this.getClass())) {
             throw new UnsupportedOperationException("Registry [" + this.getClass() +  "] is intended to do reload, but it's not registered!");
+        }
+        if (CODEC_MAP.isEmpty()) {
+            throw new UnsupportedOperationException("Registry [" + this.getClass() +  "] should have at least 1 registered codec!");
         }
         return true;
     }
@@ -328,5 +335,9 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     public final Codec<E> getFallbackCodec() {
         return this.fallbackCodec;
+    }
+
+    public final Codec<BoundHolder<E>> getHolderCodec() {
+        return holderCodec;
     }
 }

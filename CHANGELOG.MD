@@ -2,6 +2,16 @@
 
 ## 1.4
 ---
+### 1.4.1
+- Bump 1.4.0.4 to 1.4.1 as release version
+
+#### Core
+- Introduce LazySupplier for some unknown loading sequence
+
+#### Runtime.forgemod
+- Tweak registry event priority for better compatibility
+- Tweak codec of DefaultRegistryBoundPacketPayload to be thread-safe
+
 ### 1.4.0.4
 #### Runtime.forgemod
 - Add LivingEntityCakyHandler

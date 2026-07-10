@@ -16,8 +16,9 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
     public static final String version = "1.0";
     public static final Type<ClientBoundSyncExtraGemBonusesPacket> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_cl");
     private final String regPath;
+    public static final DefaultRegistryBoundPacketPayload<?> EMPTY = new DefaultRegistryBoundPacketPayload<>(null, null, "");
 
-    public String getRegistryPath() {
+    public String getRegPath() {
         return regPath;
     }
 
@@ -45,9 +46,9 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
     public static class Begin implements IBegin {
         public final Type<Begin> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_begin");
         private final String path;
-        public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.Begin> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(Begin::getPath, Begin::new);
+        public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.Begin> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(Begin::getRegPath, Begin::new);
 
-        private String getPath() {
+        private String getRegPath() {
             return path;
         }
 
@@ -66,12 +67,9 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         }
 
         @Override
-        @SuppressWarnings({"unchecked", "rawtypes"})
         public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
             DefaultPacketBoundRegistry<?> registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(path);
             if (registry == null) return;
-            FriendlyByteBufCodec codec = registry.getDefaultBufCodec();
-            GameLifecycleHelper.submitContextCall(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, () -> codec);
             registry.handleBegin(contextSupplier);
         }
     }
@@ -80,11 +78,11 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         public final Type<End> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_end");
         private final String path;
 
-        private String getPath() {
+        private String getRegPath() {
             return path;
         }
 
-        public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.End> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(End::getPath, End::new);
+        public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.End> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(End::getRegPath, End::new);
 
         public End(String path) {
             this.path = path;
@@ -105,7 +103,6 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
             var registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(path);
             if (registry == null) return;
             registry.handleEnd(contextSupplier);
-            GameLifecycleHelper.callAndRemoveIfPresent(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
         }
     }
 }

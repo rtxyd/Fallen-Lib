@@ -3,6 +3,7 @@ package net.rtxyd.fallen.lib.runtime.forgemod.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.network.NetworkDirection;
@@ -38,10 +39,11 @@ public class Connection {
     }
 
     private static void registerApoth() {
-        registerRegistryBoundPacketPayloads(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
+        registerRegistryBoundPacketPayloadsWithPriority(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
                 ClientBoundSyncExtraGemBonusesPacket.Begin.class,   ClientBoundSyncExtraGemBonusesPacket.Begin::new,    ClientBoundSyncExtraGemBonusesPacket.Begin::handle,
                 ClientBoundSyncExtraGemBonusesPacket.class,         ClientBoundSyncExtraGemBonusesPacket::new,          ClientBoundSyncExtraGemBonusesPacket::handle,
-                ClientBoundSyncExtraGemBonusesPacket.End.class,     ClientBoundSyncExtraGemBonusesPacket.End::new,      ClientBoundSyncExtraGemBonusesPacket.End::handle);
+                ClientBoundSyncExtraGemBonusesPacket.End.class,     ClientBoundSyncExtraGemBonusesPacket.End::new,      ClientBoundSyncExtraGemBonusesPacket.End::handle,
+                EventPriority.LOW);
     }
 
     public static void init(FMLCommonSetupEvent e) {
@@ -58,11 +60,10 @@ public class Connection {
 
     public static <I extends ICodecProvider<I>> void registerDefaultPacketBoundRegistry(DefaultPacketBoundRegistry<I> singleton) {
         singleton.registerCommon();
-        singleton.initSingletonBoundCodec();
         DefaultPacketBoundRegistry.registerDefaultSingleton(singleton);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static void registerInternal() {
         if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
 
@@ -73,14 +74,23 @@ public class Connection {
 
         INSTANCE.messageBuilder(DefaultRegistryBoundPacketPayload.class, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder((payload, buf) -> {
-                    var codec = GameLifecycleHelper.callIfPresent(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
+                    String regPath = payload.getRegPath();
+                    var registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(regPath);
+                    if (registry == null) return;
+                    var codec = (FriendlyByteBufCodec) registry.getDefaultBufCodec();
                     if (codec == null) return;
                     codec.encode(payload, buf);
                 })
-                .decoder(t -> {
-                    var codec = GameLifecycleHelper.callIfPresent(DefaultPacketBoundRegistry.CODEC_CONTEXT_KEY, GameLifecycleHelper.EMPTY_EX_CONSUMER);
-                    if (codec == null) return new DefaultRegistryBoundPacketPayload<>(null, null, "");
-                    return codec.decode(t);
+                .decoder(buf -> {
+                    buf.markReaderIndex();
+                    int length = buf.readInt();
+                    String regPath = buf.readUtf(length);
+                    var registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(regPath);
+                    if (registry == null) return DefaultRegistryBoundPacketPayload.EMPTY;
+                    var codec = registry.getDefaultBufCodec();
+                    if (codec == null) return DefaultRegistryBoundPacketPayload.EMPTY;
+                    buf.resetReaderIndex();
+                    return codec.decode(buf);
                 })
                 .consumerMainThread(DefaultRegistryBoundPacketPayload::handle).add();
 
@@ -101,6 +111,23 @@ public class Connection {
                                              Class<PB> begin, Supplier<PB> beginConstructor, BiConsumer<PB, Supplier<NetworkEvent.Context>> beginHandler,
                                              Class<P> process, BiFunction<ResourceLocation, I, P> processConstructor, BiConsumer<P, Supplier<NetworkEvent.Context>> processHandler,
                                              Class<PE> end, Supplier<PE> endConstructor, BiConsumer<PE, Supplier<NetworkEvent.Context>> endHandler) {
+        registerRegistryBoundPacketPayloadsWithPriority(singleton, codec,
+                begin, beginConstructor, beginHandler,
+                process, processConstructor, processHandler,
+                end, endConstructor, endHandler,
+                EventPriority.NORMAL);
+    }
+
+    public static <I extends ICodecProvider<I>,
+            PB extends AbstractRegistryBoundPacketPayload.IBegin,
+            P extends AbstractRegistryBoundPacketPayload<I>,
+            PE extends AbstractRegistryBoundPacketPayload.IEnd,
+            R extends AbstractPacketBoundRegistry<I, PB, P, PE>>
+    void registerRegistryBoundPacketPayloadsWithPriority(R singleton, FriendlyByteBufCodec<P> codec,
+                                             Class<PB> begin, Supplier<PB> beginConstructor, BiConsumer<PB, Supplier<NetworkEvent.Context>> beginHandler,
+                                             Class<P> process, BiFunction<ResourceLocation, I, P> processConstructor, BiConsumer<P, Supplier<NetworkEvent.Context>> processHandler,
+                                             Class<PE> end, Supplier<PE> endConstructor, BiConsumer<PE, Supplier<NetworkEvent.Context>> endHandler,
+                                                         EventPriority priority) {
         if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
 
         singleton.registerCommon();
@@ -120,7 +147,7 @@ public class Connection {
         singleton.initPacketsConstructors(new AbstractPacketBoundRegistry.Constructors3<>(beginConstructor, processConstructor, endConstructor));
         AbstractPacketBoundRegistry.registerSingleton(singleton);
         AbstractRegistryBoundPacketPayload.boundRegistrySingleton(process, singleton);
-        singleton.registerSync();
+        singleton.registerSync(priority);
     }
 
     public static <I, P extends AbstractSingleEntryPacketPayLoad<I>> void registerSingleEntryPacketPayload(
