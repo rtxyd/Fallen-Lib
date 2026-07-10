@@ -20,11 +20,11 @@ public class LootCategoryFix {
     @Inject(method = "forItem", at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;"), cancellable = true)
     private static void forItemGuardA(ItemStack item, CallbackInfoReturnable<LootCategory> cir) {
         if (fallen_lib$recurseMark.get() && fallen_lib$lastItem.get() == item) {
-            LootCategory cat = AdventureConfig.TYPE_OVERRIDES.putIfAbsent(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.NONE);
+            LootCategory cat = AdventureConfig.TYPE_OVERRIDES.putIfAbsent(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.SWORD);
             if (cat == null) {
-                FallenLib.LOGGER.error("Detected recursion when invoke forItem() for {}, fallback LootCategory.NONE.", item.getItem());
+                FallenLib.LOGGER.error("Detected recursion when invoke forItem() for {}, fallback LootCategory.SWORD.", item.getItem());
             }
-            cir.setReturnValue(LootCategory.NONE);
+            cir.setReturnValue(LootCategory.SWORD);
         }
         fallen_lib$lastItem.set(item);
         fallen_lib$recurseMark.set(true);
