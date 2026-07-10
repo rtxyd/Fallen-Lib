@@ -12,6 +12,7 @@
 - Tweak registry event priority for better compatibility
 - Tweak codec of DefaultRegistryBoundPacketPayload to be thread-safe
 - ExtraGemBonus loading message
+- For recursion forItem() fallback Sword as LootCategory
 
 ### 1.4.0.4
 #### Runtime.forgemod
