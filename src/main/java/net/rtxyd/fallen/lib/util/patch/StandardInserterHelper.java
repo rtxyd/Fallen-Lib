@@ -312,7 +312,6 @@ public final class StandardInserterHelper extends AbstractInserterHelper {
          *  ctx, arg1, arg2, arg3,..., argN
          */
         invokeInsns.add(hookMethod.clone(null));
-        computeAfterHookMethod(invokeInsns);
         return invokeInsns;
     }
 
