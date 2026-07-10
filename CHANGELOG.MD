@@ -7,6 +7,7 @@
 
 #### Core
 - Introduce LazySupplier for some unknown loading sequence
+- Fix StandardInserter reentrance issue at return type
 
 #### Runtime.forgemod
 - Tweak registry event priority for better compatibility
