@@ -11,6 +11,7 @@
 #### Runtime.forgemod
 - Tweak registry event priority for better compatibility
 - Tweak codec of DefaultRegistryBoundPacketPayload to be thread-safe
+- ExtraGemBonus loading message
 
 ### 1.4.0.4
 #### Runtime.forgemod
