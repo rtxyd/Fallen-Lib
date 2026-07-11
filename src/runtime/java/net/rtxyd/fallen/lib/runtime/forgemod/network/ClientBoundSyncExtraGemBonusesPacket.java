@@ -2,7 +2,6 @@ package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.ExtraGemBonusRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import org.jetbrains.annotations.NotNull;
 

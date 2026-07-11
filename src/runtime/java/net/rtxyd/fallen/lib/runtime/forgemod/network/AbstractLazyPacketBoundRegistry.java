@@ -35,11 +35,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
-        PB extends AbstractRegistryBoundPacketPayload.IBegin,
-        P extends AbstractRegistryBoundPacketPayload<E>,
-        PE extends AbstractRegistryBoundPacketPayload.IEnd>
-        extends SimpleJsonResourceReloadListener implements IPacketBoundRegistry<E>, ICodecProvider<E>, IHolderOwner<ResourceLocation, E> {
+public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E>,
+        PB extends LazyPacketPayLoad.IBegin,
+        P extends LazyPacketPayLoad<E>,
+        PE extends LazyPacketPayLoad.IEnd>
+        extends SimpleJsonResourceReloadListener implements ILazyPacketBoundRegistry<E>, ICodecProvider<E>, IHolderOwner<ResourceLocation, E> {
 
     protected final String path;
     private final Logger logger;
@@ -49,21 +49,22 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     protected final boolean doSync;
     protected final boolean useTypeIdAsKey;
 
+    protected BiMap<ResourceLocation, Supplier<E>> lazyRegistry = ImmutableBiMap.of();
     protected BiMap<ResourceLocation, E> registry = ImmutableBiMap.of();
     protected Map<ResourceLocation, BoundHolder<E>> holders = new ConcurrentHashMap<>();
     @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends AbstractPacketBoundRegistry>, AbstractPacketBoundRegistry> SINGLETONS = new HashMap<>();
+    private static final Map<Class<? extends AbstractLazyPacketBoundRegistry>, AbstractLazyPacketBoundRegistry> SINGLETONS = new HashMap<>();
 
     private final BiMap<ResourceLocation, Codec<? extends E>> CODEC_MAP = HashBiMap.create();
     private Codec<E> fallbackCodec = null;
 
-    protected final Map<ResourceLocation, E> temp = new HashMap<>();
+    protected final Map<ResourceLocation, Supplier<E>> temp = new HashMap<>();
 
-    Constructors3<E, PB, P, PE> packetConstructors;
+    Constructors3Special<E, PB, P, PE> packetConstructors;
     private Codec<E> singletonBoundCodec;
     private Codec<BoundHolder<E>> holderCodec;
 
-    public AbstractPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
+    public AbstractLazyPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(new Gson(), path);
         this.path = path;
         this.logger = logger;
@@ -76,14 +77,14 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         this.holderCodec = ResourceLocation.CODEC.xmap(this::holder, BoundHolder::getId);
     }
 
-    final void initPacketsConstructors(Constructors3<E, PB, P, PE> constructors) {
+    final void initPacketsConstructors(Constructors3Special<E, PB, P, PE> constructors) {
         if (this.packetConstructors == null) {
             this.validateConstructors(constructors);
             this.packetConstructors = constructors;
         }
     }
 
-    private final void validateConstructors(Constructors3<E, PB, P, PE> constructors) {
+    private final void validateConstructors(Constructors3Special<E, PB, P, PE> constructors) {
         if (!(constructors.beginConstructor() != null && constructors.processConstructor() != null && constructors.endConstructor() != null)) {
             throw new RuntimeException("Registry[" + this.getClass() + "]: Invalid packet constructors!");
         }
@@ -143,7 +144,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     private final void register(ResourceLocation loc, E item) {
         if (this.registry.containsKey(loc)) throw new UnsupportedOperationException("Duplicated id: [" + loc + "]");
-        registerTempEntry(loc, item);
+        registerTempEntry(loc, () -> item);
         this.registry.put(loc, item);
         this.holders.computeIfAbsent(loc, a -> new BoundHolder<>(loc, this));
     }
@@ -162,13 +163,13 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    AbstractPacketBoundRegistry<A, B, C, D> getSingleton(Class<? extends AbstractPacketBoundRegistry<A, B, C, D>> registryClass) {
-        return (AbstractPacketBoundRegistry<A, B, C, D>) SINGLETONS.get(registryClass);
+    public static <A extends ICodecProvider<A>, B extends LazyPacketPayLoad.IBegin, C extends LazyPacketPayLoad<A>, D extends LazyPacketPayLoad.IEnd>
+    AbstractLazyPacketBoundRegistry<A, B, C, D> getSingleton(Class<? extends AbstractLazyPacketBoundRegistry<A, B, C, D>> registryClass) {
+        return (AbstractLazyPacketBoundRegistry<A, B, C, D>) SINGLETONS.get(registryClass);
     }
 
     @SuppressWarnings("rawtypes")
-    static void registerSingleton(AbstractPacketBoundRegistry instance) {
+    static void registerSingleton(AbstractLazyPacketBoundRegistry instance) {
         SINGLETONS.computeIfAbsent(instance.getClass(), k -> instance);
     }
 
@@ -223,6 +224,18 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         return this.registry.values();
     }
 
+    public Collection<Supplier<E>> getLazyValues() {
+        return this.lazyRegistry.values();
+    }
+
+    public Set<ResourceLocation> getLazyKeys() {
+        return this.lazyRegistry.keySet();
+    }
+
+    public Supplier<E> getLazyValue(ResourceLocation key) {
+        return this.lazyRegistry.get(key);
+    }
+
     @Nullable
     public E fallen_lib$getValue(ResourceLocation key) {
         return getValue(key);
@@ -265,7 +278,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         PacketDistributor.PacketTarget target = player == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(() -> player);
         Connection.sendToTarget(target, packetConstructors.beginConstructor().get());
         registry.forEach((path, item) -> {
-            Connection.sendToTarget(target, packetConstructors.processConstructor().apply(path, item));
+            Connection.sendToTarget(target, packetConstructors.processConstructor().apply(path, () -> item));
         });
         Connection.sendToTarget(target, packetConstructors.endConstructor().get());
     }
@@ -273,12 +286,14 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     @Override
     public void beginReload() {
         this.registry = HashBiMap.create();
+        this.lazyRegistry = HashBiMap.create();
         this.holders.values().forEach(BoundHolder::reset);
     }
 
     @Override
     public void onReload() {
         this.registry = ImmutableBiMap.copyOf(this.registry);
+        this.lazyRegistry = ImmutableBiMap.copyOf(this.lazyRegistry);
         this.holders.values().forEach(BoundHolder::bind);
     }
 
@@ -288,13 +303,15 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     @Override
-    public final void registerTempEntry(ResourceLocation loc, E item) {
-        this.validateItem(loc, item);
+    public final void registerTempEntry(ResourceLocation loc, Supplier<E> item) {
+        this.validateItemA(loc, item);
         this.temp.put(loc, item);
     }
 
     @Override
     public void validateItem(ResourceLocation loc, E item) {}
+
+    public void validateItemA(ResourceLocation loc, Supplier<E> item) {}
 
     @Override
     public final void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
@@ -302,7 +319,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     @Override
-    public final void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
+    public final void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, Supplier<E> item) {
         contextSupplier.get().enqueueWork(() -> {
             this.registerTempEntry(path, item);
         });
@@ -321,7 +338,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     @Override
     public final void applyTemp() {
         temp.forEach((k,v)->{
-            registry.put(k,v);
+            lazyRegistry.put(k, v);
             this.holders.computeIfAbsent(k, r -> new BoundHolder<>(r, this));
         });
     }

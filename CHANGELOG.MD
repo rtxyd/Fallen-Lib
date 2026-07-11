@@ -2,6 +2,13 @@
 
 ## 1.4
 ---
+### 1.4.2
+
+### Runtime.forgemod
+- Introduce ILazyPacketBoundRegistry and LazyPacketPayLoad to solve client desync issue
+- ExtraGemBonus implementation is changed to above
+
+
 ### 1.4.1
 - Bump 1.4.0.4 to 1.4.1 as release version
 

@@ -1,5 +1,4 @@
-/*
-package net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis;
+package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.HashBiMap;
@@ -15,16 +14,15 @@ import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.ModList;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
-import net.rtxyd.fallen.lib.runtime.forgemod.network.AbstractPacketBoundRegistry;
-import net.rtxyd.fallen.lib.runtime.forgemod.network.ClientBoundSyncExtraGemBonusesPacket;
+import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.GemBonusExtension;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.SupplierCodec;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
-public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemBonusRegistry.ExtraGemBonus, ClientBoundSyncExtraGemBonusesPacket.Begin, ClientBoundSyncExtraGemBonusesPacket, ClientBoundSyncExtraGemBonusesPacket.End> {
-
+public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<ExtraGemBonusRegistry.ExtraGemBonus, ExtraGemBonusPayload.Begin, ExtraGemBonusPayload, ExtraGemBonusPayload.End> {
     public static final ExtraGemBonusRegistry INSTANCE = new ExtraGemBonusRegistry();
 
     protected Multimap<DynamicHolder<Gem>, ExtraGemBonus> extraBonuses = HashMultimap.create();
@@ -39,24 +37,35 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
 
         // backward compatibility for lib version 1.3.2
         if (ModList.get().isLoaded("fallen_gems_affixes")) {
-            this.registerCodec(ResourceLocation.fromNamespaceAndPath("fallen_gems_affixes", "extra_gem_bonus"), Codec.of(ExtraGemBonus.CODEC, ExtraGemBonus.CODEC));
+            this.registerCodec(ResourceLocation.fromNamespaceAndPath("fallen_gems_affixes", "extra_gem_bonus"), Codec.of(ExtraGemBonusRegistry.ExtraGemBonus.CODEC, ExtraGemBonusRegistry.ExtraGemBonus.CODEC));
         }
         //end
     }
 
     @Override
     public void beginReload() {
-        this.registry = HashBiMap.create();
+        super.beginReload();
         this.extraBonuses = HashMultimap.create();
         this.clearExtraGemBonuses();
     }
 
     @Override
     public void onReload() {
+        super.onReload();
         FallenLib.LOGGER.info("Loading extra gem bonus...");
-        for (ExtraGemBonus extraBonus : registry.values()) {
-            this.extraBonuses.put(extraBonus.gem, extraBonus);
+        if (!lazyRegistry.isEmpty()) {
+            for (Map.Entry<ResourceLocation, Supplier<ExtraGemBonus>> en : lazyRegistry.entrySet()) {
+                Supplier<ExtraGemBonus> sup = en.getValue();
+                try {
+                    ExtraGemBonus extraGemBonus = sup.get();
+                    this.registry.put(en.getKey(), extraGemBonus);
+                } catch (Exception e) {
+                    FallenLib.LOGGER.error("Failed parsing extra gem bonus [{}]", en.getKey());
+                }
+            }
         }
+        for (ExtraGemBonus extraBonus : registry.values())
+            this.extraBonuses.put(extraBonus.gem, extraBonus);
         FallenLib.LOGGER.info("Finalize loading...");
         this.applyExtraGemBonuses();
         FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
@@ -71,9 +80,9 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
             DynamicHolder<Gem> holder = GemRegistry.INSTANCE.holder(gem);
 
             for (ExtraGemBonus extraBonus : this.extraBonuses.get(holder)) {
-                for (Supplier<GemBonus> bonus : extraBonus.bonuses()) {
+                for (GemBonus bonus : extraBonus.bonuses()) {
                     try {
-                        ((GemBonusExtension) gem).fallen_lib$appendExtraBonus(bonus.get());
+                        ((GemBonusExtension) gem).fallen_lib$appendExtraBonus(bonus);
                     } catch (Exception e) {
                         FallenLib.LOGGER.error("Failed applying extra gem bonus [{}]", registry.inverse().get(extraBonus));
                     }
@@ -91,19 +100,19 @@ public class ExtraGemBonusRegistry extends AbstractPacketBoundRegistry<ExtraGemB
     }
 
     public record ExtraGemBonus(DynamicHolder<Gem> gem,
-                                List<Supplier<GemBonus>> bonuses) implements CodecProvider<ExtraGemBonus>, ICodecProvider<ExtraGemBonus> {
+                                List<GemBonus> bonuses) implements CodecProvider<ExtraGemBonus>, ICodecProvider<ExtraGemBonus> {
 
         public static final Codec<Supplier<GemBonus>> SUPPLIER_CODEC = new SupplierCodec<>(GemBonus.CODEC);
 
         public static final Codec<ExtraGemBonus> CODEC = RecordCodecBuilder.create(inst -> inst
                 .group(
                         GemRegistry.INSTANCE.holderCodec().fieldOf("gem").forGetter(ExtraGemBonus::gem),
-                        SUPPLIER_CODEC.listOf().fieldOf("bonuses").forGetter(ExtraGemBonus::bonuses))
-                .apply(inst, ExtraGemBonus::new));
+                        GemBonus.CODEC.listOf().fieldOf("bonuses").forGetter(ExtraGemBonus::bonuses))
+                .apply(inst, ExtraGemBonusRegistry.ExtraGemBonus::new));
 
         @Override
         public Codec<? extends ExtraGemBonus> getCodec() {
             return CODEC;
         }
     }
-}*/
+}

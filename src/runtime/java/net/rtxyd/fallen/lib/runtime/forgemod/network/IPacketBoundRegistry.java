@@ -1,14 +1,14 @@
-package net.rtxyd.fallen.lib.runtime.forgemod.util;
+package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.event.OnDatapackSyncEvent;
 import net.minecraftforge.network.NetworkEvent;
-import net.rtxyd.fallen.lib.runtime.forgemod.network.AbstractRegistryBoundPacketPayload;
+import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public interface IPacketBoundRegistry<REGISTRY_ITEM extends ICodecProvider<REGISTRY_ITEM>> {
+public interface IPacketBoundRegistry<REGISTRY_ITEM> {
 
     void beginReload();
 

@@ -13,16 +13,11 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.SimpleMixinConnector;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.ExtraGemBonusRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.compat.fga.FGAVersionStage;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.GameLifecycleHelper;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 public class Connection {
     private static final SimpleChannel INSTANCE = NetworkRegistry.ChannelBuilder
@@ -39,11 +34,44 @@ public class Connection {
     }
 
     private static void registerApoth() {
-        registerRegistryBoundPacketPayloadsWithPriority(ExtraGemBonusRegistry.INSTANCE, ClientBoundSyncExtraGemBonusesPacket.BUF_CODEC,
-                ClientBoundSyncExtraGemBonusesPacket.Begin.class,   ClientBoundSyncExtraGemBonusesPacket.Begin::new,    ClientBoundSyncExtraGemBonusesPacket.Begin::handle,
-                ClientBoundSyncExtraGemBonusesPacket.class,         ClientBoundSyncExtraGemBonusesPacket::new,          ClientBoundSyncExtraGemBonusesPacket::handle,
-                ClientBoundSyncExtraGemBonusesPacket.End.class,     ClientBoundSyncExtraGemBonusesPacket.End::new,      ClientBoundSyncExtraGemBonusesPacket.End::handle,
+        registerRegistryBoundSupplierPacketPayloadsWithPriority(ExtraGemBonusRegistry.INSTANCE, (FriendlyByteBufCodec) ExtraGemBonusPayload.BUF_CODEC,
+                ExtraGemBonusPayload.Begin.class, ExtraGemBonusPayload.Begin::new, ExtraGemBonusPayload.Begin::handle,
+                ExtraGemBonusPayload.class, ExtraGemBonusPayload::new, ExtraGemBonusPayload::handle,
+                ExtraGemBonusPayload.End.class, ExtraGemBonusPayload.End::new, ExtraGemBonusPayload.End::handle,
                 EventPriority.LOW);
+    }
+
+    private static <PB extends LazyPacketPayLoad.IBegin,
+            P extends LazyPacketPayLoad<I>,
+            I extends ICodecProvider<I>,
+            PE extends LazyPacketPayLoad.IEnd,
+            R extends AbstractLazyPacketBoundRegistry<I, PB, P, PE>>
+    void registerRegistryBoundSupplierPacketPayloadsWithPriority(
+            R singleton, FriendlyByteBufCodec<P> codec,
+            Class<PB> begin, Supplier<PB> beginConstructor, BiConsumer<PB, Supplier<NetworkEvent.Context>> beginHandler,
+            Class<P> process, BiFunction<ResourceLocation, Supplier<I>, P> processConstructor, BiConsumer<P, Supplier<NetworkEvent.Context>> processHandler,
+            Class<PE> end, Supplier<PE> endConstructor, BiConsumer<PE, Supplier<NetworkEvent.Context>> endHandler,
+            EventPriority priority) {
+        if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
+
+        singleton.registerCommon();
+
+        INSTANCE.messageBuilder(begin, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(nullEncoderAuto())
+                .decoder(t -> beginConstructor.get())
+                .consumerMainThread(beginHandler).add();
+        INSTANCE.messageBuilder(process, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(codec::encode)
+                .decoder(codec::decode)
+                .consumerMainThread(processHandler).add();
+        INSTANCE.messageBuilder(end, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(nullEncoderAuto())
+                .decoder(t -> endConstructor.get())
+                .consumerMainThread(endHandler).add();
+        singleton.initPacketsConstructors(new ILazyPacketBoundRegistry.Constructors3Special<>(beginConstructor, processConstructor, endConstructor));
+        AbstractLazyPacketBoundRegistry.registerSingleton(singleton);
+        LazyPacketPayLoad.boundRegistrySingleton(process, singleton);
+        singleton.registerSync(priority);
     }
 
     public static void init(FMLCommonSetupEvent e) {
