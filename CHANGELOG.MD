@@ -4,7 +4,10 @@
 ---
 ### 1.4.2
 
-### Runtime.forgemod
+#### hotfix
+- Fix extra gem bonus
+
+#### Runtime.forgemod
 - Introduce ILazyPacketBoundRegistry and LazyPacketPayLoad to solve client desync issue
 - ExtraGemBonus implementation is changed to above
 - Use two marks to indicate the GemRegistry loading sequence on delegated server
