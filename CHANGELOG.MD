@@ -7,7 +7,8 @@
 ### Runtime.forgemod
 - Introduce ILazyPacketBoundRegistry and LazyPacketPayLoad to solve client desync issue
 - ExtraGemBonus implementation is changed to above
-
+- Use two marks to indicate the GemRegistry loading sequence on delegated server
+- Fix the unbound holder issue when client try to join a server
 
 ### 1.4.1
 - Bump 1.4.0.4 to 1.4.1 as release version
