@@ -106,8 +106,9 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
         super.onReload();
         // if check callback is not executed, then the GemRegistry is loaded before extra gem bonus
         // if it's executed, here we get nothing.
+        // !check => beforeGemRegistry = true
         GemRegistry.INSTANCE.removeCallback(CHECK_CALLBACK);
-        if (isBeforeGemRegistry || isGemRegistryChecked) {
+        if (isBeforeGemRegistry || !isGemRegistryChecked) {
             isBeforeGemRegistry = true;
             addGemRegistryLoadingCallback();
         } else {
