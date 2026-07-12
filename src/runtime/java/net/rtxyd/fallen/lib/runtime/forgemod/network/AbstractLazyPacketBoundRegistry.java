@@ -36,9 +36,9 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E>,
-        PB extends LazyPacketPayLoad.IBegin,
-        P extends LazyPacketPayLoad<E>,
-        PE extends LazyPacketPayLoad.IEnd>
+        PB extends LazyRegistryBoundPacketPayLoad.IBegin,
+        P extends LazyRegistryBoundPacketPayLoad<E>,
+        PE extends LazyRegistryBoundPacketPayLoad.IEnd>
         extends SimpleJsonResourceReloadListener implements ILazyPacketBoundRegistry<E>, ICodecProvider<E>, IHolderOwner<ResourceLocation, E> {
 
     protected final String path;
@@ -97,10 +97,18 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
     }
 
     final void registerCommon() {
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
+        registerCommonWithPriority(EventPriority.LOW);
     }
 
-    final void registerSync(EventPriority priority) {
+    final void registerCommonWithPriority(EventPriority priority) {
+        MinecraftForge.EVENT_BUS.addListener(priority, this::onAddReloadListeners);
+    }
+
+    final void registerSync() {
+        registerSyncWithPriority(EventPriority.NORMAL);
+    }
+
+    final void registerSyncWithPriority(EventPriority priority) {
         MinecraftForge.EVENT_BUS.addListener(priority, this::syncClient);
     }
 
@@ -163,7 +171,7 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends LazyPacketPayLoad.IBegin, C extends LazyPacketPayLoad<A>, D extends LazyPacketPayLoad.IEnd>
+    public static <A extends ICodecProvider<A>, B extends LazyRegistryBoundPacketPayLoad.IBegin, C extends LazyRegistryBoundPacketPayLoad<A>, D extends LazyRegistryBoundPacketPayLoad.IEnd>
     AbstractLazyPacketBoundRegistry<A, B, C, D> getSingleton(Class<? extends AbstractLazyPacketBoundRegistry<A, B, C, D>> registryClass) {
         return (AbstractLazyPacketBoundRegistry<A, B, C, D>) SINGLETONS.get(registryClass);
     }

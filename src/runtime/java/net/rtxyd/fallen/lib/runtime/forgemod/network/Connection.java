@@ -1,5 +1,7 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
+import dev.shadowsoffire.apotheosis.adventure.socket.gem.GemRegistry;
+import dev.shadowsoffire.placebo.reload.RegistryCallback;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,27 +36,32 @@ public class Connection {
     }
 
     private static void registerApoth() {
+        // loading common should be always after GemRegistry
+        // could use DynamicRegistry if there's fatal problem on loading sequence
         registerRegistryBoundSupplierPacketPayloadsWithPriority(ExtraGemBonusRegistry.INSTANCE, (FriendlyByteBufCodec) ExtraGemBonusPayload.BUF_CODEC,
                 ExtraGemBonusPayload.Begin.class, ExtraGemBonusPayload.Begin::new, ExtraGemBonusPayload.Begin::handle,
                 ExtraGemBonusPayload.class, ExtraGemBonusPayload::new, ExtraGemBonusPayload::handle,
                 ExtraGemBonusPayload.End.class, ExtraGemBonusPayload.End::new, ExtraGemBonusPayload.End::handle,
+                EventPriority.LOW,
                 EventPriority.LOW);
+        ExtraGemBonusRegistry.INSTANCE.addGemRegistryCheckCallback();
     }
 
-    private static <PB extends LazyPacketPayLoad.IBegin,
-            P extends LazyPacketPayLoad<I>,
+    private static <PB extends LazyRegistryBoundPacketPayLoad.IBegin,
+            P extends LazyRegistryBoundPacketPayLoad<I>,
             I extends ICodecProvider<I>,
-            PE extends LazyPacketPayLoad.IEnd,
+            PE extends LazyRegistryBoundPacketPayLoad.IEnd,
             R extends AbstractLazyPacketBoundRegistry<I, PB, P, PE>>
     void registerRegistryBoundSupplierPacketPayloadsWithPriority(
             R singleton, FriendlyByteBufCodec<P> codec,
             Class<PB> begin, Supplier<PB> beginConstructor, BiConsumer<PB, Supplier<NetworkEvent.Context>> beginHandler,
             Class<P> process, BiFunction<ResourceLocation, Supplier<I>, P> processConstructor, BiConsumer<P, Supplier<NetworkEvent.Context>> processHandler,
             Class<PE> end, Supplier<PE> endConstructor, BiConsumer<PE, Supplier<NetworkEvent.Context>> endHandler,
-            EventPriority priority) {
+            EventPriority commonPriority,
+            EventPriority packetPriority) {
         if (INSTANCE == null) throw new RuntimeException("Fallen Lib Connection is not initialized!");
 
-        singleton.registerCommon();
+        singleton.registerCommonWithPriority(commonPriority);
 
         INSTANCE.messageBuilder(begin, id(), NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(nullEncoderAuto())
@@ -70,8 +77,8 @@ public class Connection {
                 .consumerMainThread(endHandler).add();
         singleton.initPacketsConstructors(new ILazyPacketBoundRegistry.Constructors3Special<>(beginConstructor, processConstructor, endConstructor));
         AbstractLazyPacketBoundRegistry.registerSingleton(singleton);
-        LazyPacketPayLoad.boundRegistrySingleton(process, singleton);
-        singleton.registerSync(priority);
+        LazyRegistryBoundPacketPayLoad.boundRegistrySingleton(process, singleton);
+        singleton.registerSyncWithPriority(packetPriority);
     }
 
     public static void init(FMLCommonSetupEvent e) {

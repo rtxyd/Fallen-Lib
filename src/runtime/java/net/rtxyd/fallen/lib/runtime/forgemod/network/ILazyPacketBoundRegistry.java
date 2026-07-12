@@ -31,10 +31,10 @@ public interface ILazyPacketBoundRegistry<E> {
     void applyTemp();
 
     record Constructors3Special<REGISTRY_ITEM extends ICodecProvider<REGISTRY_ITEM>,
-            BEGIN extends LazyPacketPayLoad.IBegin,
-            PROCESS extends LazyPacketPayLoad<REGISTRY_ITEM>,
-            END extends LazyPacketPayLoad.IEnd>(Supplier<BEGIN> beginConstructor,
-                                                BiFunction<ResourceLocation, Supplier<REGISTRY_ITEM>, PROCESS> processConstructor,
-                                                Supplier<END> endConstructor) {
+            BEGIN extends LazyRegistryBoundPacketPayLoad.IBegin,
+            PROCESS extends LazyRegistryBoundPacketPayLoad<REGISTRY_ITEM>,
+            END extends LazyRegistryBoundPacketPayLoad.IEnd>(Supplier<BEGIN> beginConstructor,
+                                                             BiFunction<ResourceLocation, Supplier<REGISTRY_ITEM>, PROCESS> processConstructor,
+                                                             Supplier<END> endConstructor) {
     }
 }

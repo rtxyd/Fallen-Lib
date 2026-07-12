@@ -17,20 +17,20 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public class LazyPacketPayLoad<T extends ICodecProvider<T>> {
+public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>> {
     public final ResourceLocation path;
     public final Supplier<T> item;
     @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends LazyPacketPayLoad>, AbstractLazyPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
+    private static final Map<Class<? extends LazyRegistryBoundPacketPayLoad>, AbstractLazyPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends LazyPacketPayLoad.IBegin, C extends LazyPacketPayLoad<A>, D extends LazyPacketPayLoad.IEnd>
+    public static <A extends ICodecProvider<A>, B extends LazyRegistryBoundPacketPayLoad.IBegin, C extends LazyRegistryBoundPacketPayLoad<A>, D extends LazyRegistryBoundPacketPayLoad.IEnd>
     AbstractLazyPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<?> registryClass) {
         return (AbstractLazyPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryClass);
     }
 
-    static <A extends ICodecProvider<A>, B extends LazyPacketPayLoad.IBegin, C extends LazyPacketPayLoad<A>, D extends LazyPacketPayLoad.IEnd>
-    void boundRegistrySingleton(Class<? extends LazyPacketPayLoad<A>> packetClass, AbstractLazyPacketBoundRegistry<A, B, C ,D> instance) {
+    static <A extends ICodecProvider<A>, B extends LazyRegistryBoundPacketPayLoad.IBegin, C extends LazyRegistryBoundPacketPayLoad<A>, D extends LazyRegistryBoundPacketPayLoad.IEnd>
+    void boundRegistrySingleton(Class<? extends LazyRegistryBoundPacketPayLoad<A>> packetClass, AbstractLazyPacketBoundRegistry<A, B, C ,D> instance) {
         if (REGISTRY_SINGLETONS.putIfAbsent(packetClass, instance) != null) {
             throw new UnsupportedOperationException("Payload " + packetClass.getName() + " is already bound to a registry singleton!");
         }
@@ -44,7 +44,7 @@ public class LazyPacketPayLoad<T extends ICodecProvider<T>> {
         return path;
     }
 
-    public static <ORIGIN extends LazyPacketPayLoad<E>, E extends ICodecProvider<E>> FriendlyByteBufCodec<ORIGIN> createLazyByteBufCodec(
+    public static <ORIGIN extends LazyRegistryBoundPacketPayLoad<E>, E extends ICodecProvider<E>> FriendlyByteBufCodec<ORIGIN> createLazyByteBufCodec(
             Logger logger,
             Codec<E> itemCodec,
             BiFunction<ResourceLocation, Supplier<E>, ORIGIN> constructor
@@ -68,7 +68,7 @@ public class LazyPacketPayLoad<T extends ICodecProvider<T>> {
         };
     }
 
-    public LazyPacketPayLoad(ResourceLocation path, Supplier<T> item) {
+    public LazyRegistryBoundPacketPayLoad(ResourceLocation path, Supplier<T> item) {
         this.path = path;
         this.item = item;
     }

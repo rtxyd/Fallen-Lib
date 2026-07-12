@@ -6,17 +6,17 @@ import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 
 import java.util.function.Supplier;
 
-public class ExtraGemBonusPayload extends LazyPacketPayLoad<ExtraGemBonusRegistry.ExtraGemBonus> {
+public class ExtraGemBonusPayload extends LazyRegistryBoundPacketPayLoad<ExtraGemBonusRegistry.ExtraGemBonus> {
     public static final String version = "1.0";
     public static final IVanillaLikeCustomPacketPayload.Type<ClientBoundSyncExtraGemBonusesPacket> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "egb_cl");
-    public static final FriendlyByteBufCodec<LazyPacketPayLoad<ExtraGemBonusRegistry.ExtraGemBonus>> BUF_CODEC =
-            createLazyByteBufCodec(FallenLib.LOGGER, ExtraGemBonusRegistry.ExtraGemBonus.CODEC, LazyPacketPayLoad::new);
+    public static final FriendlyByteBufCodec<LazyRegistryBoundPacketPayLoad<ExtraGemBonusRegistry.ExtraGemBonus>> BUF_CODEC =
+            createLazyByteBufCodec(FallenLib.LOGGER, ExtraGemBonusRegistry.ExtraGemBonus.CODEC, ExtraGemBonusPayload::new);
 
     public ExtraGemBonusPayload(ResourceLocation path, Supplier<ExtraGemBonusRegistry.ExtraGemBonus> item) {
         super(path, item);
     }
 
-    public static class Begin implements LazyPacketPayLoad.IBegin {
+    public static class Begin implements LazyRegistryBoundPacketPayLoad.IBegin {
 
         @Override
         public Class<ExtraGemBonusPayload> getProcessClass() {
@@ -25,7 +25,7 @@ public class ExtraGemBonusPayload extends LazyPacketPayLoad<ExtraGemBonusRegistr
 
     }
 
-    public static class End implements LazyPacketPayLoad.IEnd {
+    public static class End implements LazyRegistryBoundPacketPayLoad.IEnd {
 
         @Override
         public Class<ExtraGemBonusPayload> getProcessClass() {

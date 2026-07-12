@@ -3,6 +3,7 @@ package net.rtxyd.fallen.lib.runtime.forgemod.network;
 import com.google.common.base.Predicates;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Multimap;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -11,6 +12,8 @@ import dev.shadowsoffire.apotheosis.adventure.socket.gem.GemRegistry;
 import dev.shadowsoffire.apotheosis.adventure.socket.gem.bonus.GemBonus;
 import dev.shadowsoffire.placebo.codec.CodecProvider;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
+import dev.shadowsoffire.placebo.reload.DynamicRegistry;
+import dev.shadowsoffire.placebo.reload.RegistryCallback;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.ModList;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
@@ -26,6 +29,22 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
     public static final ExtraGemBonusRegistry INSTANCE = new ExtraGemBonusRegistry();
 
     protected Multimap<DynamicHolder<Gem>, ExtraGemBonus> extraBonuses = HashMultimap.create();
+
+    static boolean isGemRegistryChecked = false;
+
+    public static final RegistryCallback<Gem> CHECK_CALLBACK = new RegistryCallback<Gem>() {
+        @Override
+        public void beginReload(DynamicRegistry manager) {
+            // do nothing
+        }
+
+        @Override
+        public void onReload(DynamicRegistry manager) {
+            isGemRegistryChecked = true;
+        }
+    };
+
+    static boolean isBeforeGemRegistry = false;
 
     public ExtraGemBonusRegistry() {
         super(FallenLib.LOGGER, "extra_gem_bonuses", "type", Predicates.alwaysTrue(), true, false);
@@ -46,17 +65,67 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
     public void beginReload() {
         super.beginReload();
         this.extraBonuses = HashMultimap.create();
-        this.clearExtraGemBonuses();
+    }
+
+    public void beginReloadDelayed() {
+        this.registry = HashBiMap.create();
+        this.extraBonuses = HashMultimap.create();
+    }
+
+    public void addGemRegistryCheckCallback() {
+        FallenLib.LOGGER.info("Register ExtraGemBonus check callback for GemRegistry to ensure loading.");
+        GemRegistry.INSTANCE.addCallback(CHECK_CALLBACK);
+    }
+
+    public void addGemRegistryLoadingCallback() {
+        FallenLib.LOGGER.info("Register ExtraGemBonus loading callback for GemRegistry to ensure loading.");
+        GemRegistry.INSTANCE.addCallback(new RegistryCallback<Gem>() {
+            @Override
+            public void beginReload(DynamicRegistry manager) {
+                // do nothing
+            }
+
+            @Override
+            public void onReload(DynamicRegistry manager) {
+                beginReloadDelayed();
+                clearExtraGemBonuses();
+                load();
+                applyExtraGemBonuses();
+                FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
+            }
+        });
+    }
+
+    public enum State {
+        BEFORE_GEM_REGISTRY,
+        AFTER_GEM_REGISTRY
     }
 
     @Override
     public void onReload() {
         super.onReload();
+        // if check callback is not executed, then the GemRegistry is loaded before extra gem bonus
+        // if it's executed, here we get nothing.
+        GemRegistry.INSTANCE.removeCallback(CHECK_CALLBACK);
+        if (isBeforeGemRegistry || isGemRegistryChecked) {
+            isBeforeGemRegistry = true;
+            addGemRegistryLoadingCallback();
+        } else {
+            FallenLib.LOGGER.info("Execute common ensure loading");
+            this.clearExtraGemBonuses();
+            this.load();
+            this.applyExtraGemBonuses();
+            FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
+        }
+    }
+
+    private void load() {
         FallenLib.LOGGER.info("Loading extra gem bonus...");
         if (!lazyRegistry.isEmpty()) {
             for (Map.Entry<ResourceLocation, Supplier<ExtraGemBonus>> en : lazyRegistry.entrySet()) {
                 Supplier<ExtraGemBonus> sup = en.getValue();
                 try {
+                    this.registry = HashBiMap.create(this.registry);
                     ExtraGemBonus extraGemBonus = sup.get();
                     this.registry.put(en.getKey(), extraGemBonus);
                 } catch (Exception e) {
@@ -66,16 +135,12 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
         }
         for (ExtraGemBonus extraBonus : registry.values())
             this.extraBonuses.put(extraBonus.gem, extraBonus);
+        this.registry = ImmutableBiMap.copyOf(this.registry);
         FallenLib.LOGGER.info("Finalize loading...");
-        this.applyExtraGemBonuses();
-        FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
     }
 
     private void applyExtraGemBonuses() {
         FallenLib.LOGGER.info("Current GemRegistry size [{}]", GemRegistry.INSTANCE.getKeys().size());
-        if (GemRegistry.INSTANCE.getKeys().isEmpty()) {
-            FallenLib.LOGGER.error("GemRegistry is empty, this may be a loading priority issue.");
-        }
         for (Gem gem : GemRegistry.INSTANCE.getValues()) {
             DynamicHolder<Gem> holder = GemRegistry.INSTANCE.holder(gem);
 

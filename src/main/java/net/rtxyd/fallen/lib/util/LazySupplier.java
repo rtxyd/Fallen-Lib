@@ -14,6 +14,9 @@ public class LazySupplier<T> implements Supplier<T> {
     public T get() {
         if (data == null) {
             data = supplier.get();
+            if (data != null) {
+                supplier = null;
+            }
         }
         return data;
     }
