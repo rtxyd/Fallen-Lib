@@ -44,6 +44,8 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
         }
     };
 
+    RegistryCallback<Gem> loadingCallback;
+
     static boolean isBeforeGemRegistry = false;
 
     public ExtraGemBonusRegistry() {
@@ -79,21 +81,24 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
 
     public void addGemRegistryLoadingCallback() {
         FallenLib.LOGGER.info("Register ExtraGemBonus loading callback for GemRegistry to ensure loading.");
-        GemRegistry.INSTANCE.addCallback(new RegistryCallback<Gem>() {
-            @Override
-            public void beginReload(DynamicRegistry manager) {
-                // do nothing
-            }
+        if (this.loadingCallback == null) {
+            this.loadingCallback = new RegistryCallback<Gem>() {
+                @Override
+                public void beginReload(DynamicRegistry manager) {
+                    // do nothing
+                }
 
-            @Override
-            public void onReload(DynamicRegistry manager) {
-                beginReloadDelayed();
-                clearExtraGemBonuses();
-                load();
-                applyExtraGemBonuses();
-                FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
-            }
-        });
+                @Override
+                public void onReload(DynamicRegistry manager) {
+                    beginReloadDelayed();
+                    clearExtraGemBonuses();
+                    load();
+                    applyExtraGemBonuses();
+                    FallenLib.LOGGER.info("Loading complete with {} entries", extraBonuses.size());
+                }
+            };
+        }
+        GemRegistry.INSTANCE.addCallback(this.loadingCallback);
     }
 
     public enum State {
