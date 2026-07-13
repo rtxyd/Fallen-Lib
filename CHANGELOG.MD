@@ -2,6 +2,11 @@
 
 ## 1.4
 ---
+### 1.4.3
+
+#### Runtime.forgemod
+- Lazy get loadingCallback of ExtraGemBonus to avoid potential memory leak
+
 ### 1.4.2
 
 #### hotfix
