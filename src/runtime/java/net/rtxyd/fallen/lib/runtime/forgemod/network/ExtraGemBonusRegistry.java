@@ -115,6 +115,9 @@ public class ExtraGemBonusRegistry extends AbstractLazyPacketBoundRegistry<Extra
         GemRegistry.INSTANCE.removeCallback(CHECK_CALLBACK);
         if (isBeforeGemRegistry || !isGemRegistryChecked) {
             isBeforeGemRegistry = true;
+            if (this.loadingCallback != null) {
+                GemRegistry.INSTANCE.removeCallback(this.loadingCallback);
+            }
             addGemRegistryLoadingCallback();
         } else {
             FallenLib.LOGGER.info("Execute common ensure loading");
