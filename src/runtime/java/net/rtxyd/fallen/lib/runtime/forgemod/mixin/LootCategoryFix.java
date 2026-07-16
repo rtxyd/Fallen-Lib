@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(value = LootCategory.class, remap = false)
+@Mixin(priority = 900, value = LootCategory.class, remap = false)
 public class LootCategoryFix {
     @Unique
     private static final ThreadLocal<ItemStack> fallen_lib$lastItem = ThreadLocal.withInitial(() -> ItemStack.EMPTY);
@@ -20,11 +20,16 @@ public class LootCategoryFix {
     @Inject(method = "forItem", at = @At(value = "INVOKE", target = "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;"), cancellable = true)
     private static void forItemGuardA(ItemStack item, CallbackInfoReturnable<LootCategory> cir) {
         if (fallen_lib$recurseMark.get() && fallen_lib$lastItem.get() == item) {
-            LootCategory cat = AdventureConfig.TYPE_OVERRIDES.putIfAbsent(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.SWORD);
+            LootCategory cat = AdventureConfig.TYPE_OVERRIDES.get(ForgeRegistries.ITEMS.getKey(item.getItem()));
             if (cat == null) {
                 FallenLib.LOGGER.error("Detected recursion when invoke forItem() for {}, fallback LootCategory.SWORD.", item.getItem());
+                AdventureConfig.TYPE_OVERRIDES.put(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.SWORD);
+                cir.setReturnValue(LootCategory.SWORD);
+            } else {
+                fallen_lib$lastItem.set(ItemStack.EMPTY);
+                fallen_lib$recurseMark.set(false);
+                return;
             }
-            cir.setReturnValue(LootCategory.SWORD);
         }
         fallen_lib$lastItem.set(item);
         fallen_lib$recurseMark.set(true);

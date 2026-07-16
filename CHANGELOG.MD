@@ -2,6 +2,11 @@
 
 ## 1.4
 ---
+### 1.4.4
+
+#### Runtime.forgemod
+- Fix lootCategoryFix worked not as intended
+
 ### 1.4.3
 
 #### Runtime.forgemod
