@@ -25,11 +25,10 @@ public class LootCategoryFix {
                 FallenLib.LOGGER.error("Detected recursion when invoke forItem() for {}, fallback LootCategory.SWORD.", item.getItem());
                 AdventureConfig.TYPE_OVERRIDES.put(ForgeRegistries.ITEMS.getKey(item.getItem()), LootCategory.SWORD);
                 cir.setReturnValue(LootCategory.SWORD);
-            } else {
-                fallen_lib$lastItem.set(ItemStack.EMPTY);
-                fallen_lib$recurseMark.set(false);
-                return;
             }
+            fallen_lib$lastItem.set(ItemStack.EMPTY);
+            fallen_lib$recurseMark.set(false);
+            return;
         }
         fallen_lib$lastItem.set(item);
         fallen_lib$recurseMark.set(true);
