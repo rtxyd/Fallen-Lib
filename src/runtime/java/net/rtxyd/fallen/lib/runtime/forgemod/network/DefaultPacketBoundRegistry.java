@@ -26,13 +26,11 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
     protected FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<E>> defaultBufCodec;
     private static final Map<String, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS_BY_PATH = new HashMap<>();
     private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new HashMap<>();
-    static final ContextKey<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>> CODEC_CONTEXT_KEY = GameLifecycleHelper.registerContextKey("fallen_lib.registry.default_bound");
 
-    public static final Logger LOGGER = LogManager.getLogger();
     public DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(logger, path, type, locFilter, doSync, useTypeIdAsKey);
         this.initSingletonBoundCodec();
-        this.defaultBufCodec = createDefaultByteBufCodec(LOGGER, DefaultRegistryBoundPacketPayload::new);
+        this.defaultBufCodec = createDefaultByteBufCodec(logger, DefaultRegistryBoundPacketPayload::new);
     }
 
     @SuppressWarnings("unchecked")

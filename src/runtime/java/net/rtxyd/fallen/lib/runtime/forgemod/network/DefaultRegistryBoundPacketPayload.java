@@ -14,7 +14,8 @@ import java.util.function.Supplier;
 public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> extends AbstractRegistryBoundPacketPayload<E> {
 
     public static final String version = "1.0";
-    public static final Type<ClientBoundSyncExtraGemBonusesPacket> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_cl");
+    @SuppressWarnings("rawtypes")
+    public static final Type<DefaultRegistryBoundPacketPayload> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_cl");
     private final String regPath;
     public static final DefaultRegistryBoundPacketPayload<?> EMPTY = new DefaultRegistryBoundPacketPayload<>(null, null, "");
 
@@ -23,7 +24,8 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
     }
 
     @Override
-    public @NotNull Type<ClientBoundSyncExtraGemBonusesPacket> type() {
+    @SuppressWarnings("rawtypes")
+    public @NotNull Type<DefaultRegistryBoundPacketPayload> type() {
         return TYPE;
     }
 
@@ -32,7 +34,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         if (getPath() == null || getItem() == null) return;
         DefaultPacketBoundRegistry<E> registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(regPath);
         if (registry == null) {
-            DefaultPacketBoundRegistry.LOGGER.error(String.format("Registry singleton for loading [%s] is not registered! Skipped.", getPath()));
+            FallenLib.LOGGER.error("Registry singleton for loading [{}] is not registered! Skipped.", getPath());
             return;
         }
         registry.handleProcess(contextSupplier, getPath(), getItem());
