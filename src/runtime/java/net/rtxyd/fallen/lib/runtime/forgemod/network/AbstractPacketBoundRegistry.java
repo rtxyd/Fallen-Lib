@@ -173,7 +173,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     public final void registerCodec(ResourceLocation loc, Codec<? extends E> codec) {
-        CODEC_MAP.put(loc, codec);
+        CODEC_MAP.put(Objects.requireNonNull(loc), codec);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
