@@ -1,20 +1,22 @@
 package net.rtxyd.fallen.lib.util.call;
 
+import java.util.function.Function;
+
 /**
  * Format: abc.cde.efg
  * @param <T>
  */
-public final class ContextKey<T> {
+public abstract class ContextKey<T> {
 
     private final String id;
 
-    private ContextKey(String id) {
+    protected ContextKey(String id) {
         this.id = id;
     }
 
-    static <T> ContextKey<T> create(String id) {
+    static <C extends ContextKey<?>> C create(String id, Function<String, C> function) {
         ContextKeyRegistry.validate(id);
-        return new ContextKey<>(id);
+        return function.apply(id);
     }
 
     public String getId() {

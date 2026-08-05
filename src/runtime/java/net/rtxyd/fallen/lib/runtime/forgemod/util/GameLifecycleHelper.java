@@ -1,6 +1,5 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -10,17 +9,18 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft.SlotOnTakeEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKey;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKeys;
 import net.rtxyd.fallen.lib.util.call.ContextKey;
 import net.rtxyd.fallen.lib.util.call.ContextKeyRegistry;
-import net.rtxyd.fallen.lib.util.call.ThreadLocalCallBox;
 
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -30,21 +30,23 @@ import java.util.function.Consumer;
 @Mod.EventBusSubscriber
 public class GameLifecycleHelper {
     public static IClientPlayerSupplier pSupplier = () -> null;
-    private static int maxContainerMapSize = 0;
+    private static int maxContainerMapSize = -1;
+    static int serverCycleTickCount = -2;
+    static int clientCycleTickCount = -2;
 
     private static final ContextKeyRegistry CTX_KEY_REG = new ContextKeyRegistry();
-    private static final ThreadLocalCallBox CALL_BOX = new ThreadLocalCallBox();
+    private static final ServerClientCallBox CALL_BOX = new ServerClientCallBox();
     private static final Map<Container, Set<Player>> CONTAINER_PLAYER_MAP = new HashMap<>();
     private static final Map<Player, AbstractContainerMenu> PLAYER_MENU_SNAPSHOT = new HashMap<>();
 
-    public static final ContextKey<AbstractContainerMenu> LAST_MENU = CTX_KEY_REG.register("fallen_lib.player.menu");
+    public static final CallKey<AbstractContainerMenu> LAST_MENU = CTX_KEY_REG.register("fallen_lib.player.menu", CallKey::new);
     public static final Consumer<Exception> EMPTY_EX_CONSUMER = o -> {};
 
-    public static <T> ContextKey<T> registerContextKey(String id) {
+    public static <T> CallKey<T> registerContextKey(String id) {
         if (FallenLib.getStage() == FallenLib.Stage.COMPLETE) {
             throw new UnsupportedOperationException("ContextKey can only be registered on mod loading phase");
         }
-        return CTX_KEY_REG.register(id);
+        return CTX_KEY_REG.register(id, CallKey::new);
     }
 
     public static <T> ContextKey<T> getContextKey(String id) {
@@ -59,16 +61,80 @@ public class GameLifecycleHelper {
         return CONTAINER_PLAYER_MAP.get(menu);
     }
 
-    public static <T> void submitContextCall(ContextKey<T> key, Callable<T> call) {
+    public static <T> void submitContextCall(CallKey<T> key, Callable<T> call) {
+        key.resetCallCount();
         CALL_BOX.submit(key, call);
     }
 
-    public static <T> T callIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
+    public static <T> T callIfPresent(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (key.getCallCount() < 0) {
+            key.init();
+        } else {
+            key.updateContext();
+            key.updateCallCount();
+        }
         return CALL_BOX.getAndCallIfPresent(key, handleEx);
     }
 
-    public static <T> T callAndRemoveIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
+    public static <T> T callAndRemoveIfPresent(CallKey<T> key, Consumer<Exception> handleEx) {
+        key.resetCallCount();
         return CALL_BOX.takeAndCallIfPresent(key, handleEx);
+    }
+
+    public static <T> T callAndRemoveFirstOnly(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (hasCalled(key)) return null;
+        key.resetCallCount();
+        return CALL_BOX.takeAndCallIfPresent(key, handleEx);
+    }
+
+    public static <T> T callAndRemoveSameTickOnly(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (!isInSameTick(key)) return null;
+        key.resetCallCount();
+        return CALL_BOX.takeAndCallIfPresent(key, handleEx);
+    }
+
+    public static <T> T callAndRemoveSameTickAndFirstOnly(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (hasCalled(key) || !isInSameTick(key)) return null;
+        key.resetCallCount();
+        return CALL_BOX.takeAndCallIfPresent(key, handleEx);
+    }
+
+    public static void removeWithoutCall(CallKey<?> key) {
+        key.resetCallCount();
+        CALL_BOX.remove(key);
+    }
+
+    public static int getClientCycleTickCount() {
+        return clientCycleTickCount;
+    }
+
+    public static int getServerCycleTickCount() {
+        return serverCycleTickCount;
+    }
+
+    public static boolean isClientSide() {
+        return !CALL_BOX.isThread0();
+    }
+
+    public static boolean hasCalled(CallKey<?> key) {
+        return key.getCallCount() > 0;
+    }
+
+    public static boolean isInSameTick(CallKey<?> key) {
+        if (key.getCallCount() > -1) {
+            if (isClientSide()) {
+                int client = key.getClientFingerprint();
+                if (client > -1) {
+                    return client == clientCycleTickCount;
+                }
+            } else {
+                int server = key.getServerFingerprint();
+                if (server > -1) {
+                    return server == serverCycleTickCount;
+                }
+            }
+        }
+        return false;
     }
 
     public static Player getClientPlayer() {
@@ -95,27 +161,27 @@ public class GameLifecycleHelper {
     }
 
     @SubscribeEvent
+    static void onClientStart(FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            CALL_BOX.setThread(1, Thread.currentThread());
+            clientCycleTickCount = 0;
+        });
+    }
+    @SubscribeEvent
+    static void onServerStart(ServerStartedEvent event) {
+        CALL_BOX.setThread(0, Thread.currentThread());
+        serverCycleTickCount = 0;
+    }
+    @SubscribeEvent
     static void onServerTickStart(TickEvent.ServerTickEvent e) {
         if (e.phase == TickEvent.Phase.START) {
-            CALL_BOX.clear();
-        } else {
-            MinecraftServer server = e.getServer();
-            if (server == null) return;
-            if (server.getTickCount() % 300 != 0) return;
-            int size = CONTAINER_PLAYER_MAP.size();
-//            if (size > 400) {
-//                FallenLib.LOGGER.warn("Container map unusually large: {}", size);
-//            }
-            if (size > maxContainerMapSize) {
-                maxContainerMapSize = size;
-                FallenLib.LOGGER.info("New max container map size: {}", size);
-            }
+            ++serverCycleTickCount;
         }
     }
     @SubscribeEvent
     static void onClientTickStart(TickEvent.ClientTickEvent e) {
         if (e.phase == TickEvent.Phase.START) {
-            CALL_BOX.clear();
+            clientCycleTickCount++;
         }
     }
     @SubscribeEvent
@@ -124,6 +190,12 @@ public class GameLifecycleHelper {
         EventKeys.clearAll();
         CONTAINER_PLAYER_MAP.clear();
         PLAYER_MENU_SNAPSHOT.clear();
+        CTX_KEY_REG.forEachContextKey(c -> {
+            if (c instanceof CallKey<?> callKey) {
+                callKey.resetCallCount();
+            }
+        });
+        serverCycleTickCount = 0;
     }
     @SubscribeEvent
     static void onPlayerLogOut(PlayerEvent.PlayerLoggedOutEvent e) {
@@ -171,6 +243,14 @@ public class GameLifecycleHelper {
         PLAYER_MENU_SNAPSHOT.put(p, menu);
         if (menu != p.inventoryMenu) {
             storeContainerMap(p);
+            int size = CONTAINER_PLAYER_MAP.size();
+//            if (size > 400) {
+//                FallenLib.LOGGER.warn("Container map unusually large: {}", size);
+//            }
+            if (size > maxContainerMapSize) {
+                maxContainerMapSize = size;
+                FallenLib.LOGGER.info("New max container map size: {}", size);
+            }
         }
     }
     @SubscribeEvent

@@ -2,24 +2,26 @@ package net.rtxyd.fallen.lib.util.call;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class ContextKeyRegistry {
 
     private final Map<String, ContextKey<?>> REGISTRY = new HashMap<>();
 
-    public <T> ContextKey<T> register(String id) {
+    public <T extends ContextKey<?>> T register(String id, Function<String, T> function) {
         validate(id);
         if (REGISTRY.containsKey(id)) {
             throw new IllegalStateException("Duplicated ContextKey: " + id);
         }
-        ContextKey<T> key = ContextKey.create(id);
+        T key = ContextKey.create(id, function);
         REGISTRY.put(id, key);
         return key;
     }
 
     @SuppressWarnings("unchecked")
-    public <T> ContextKey<T> get(String id) {
-        return (ContextKey<T>) REGISTRY.get(id);
+    public <T extends ContextKey<?>> T get(String id) {
+        return (T) REGISTRY.get(id);
     }
 
     public static void validate(String id) {
@@ -32,5 +34,9 @@ public final class ContextKeyRegistry {
                 throw new IllegalArgumentException("Empty segment: " + id);
             }
         }
+    }
+
+    public void forEachContextKey(Consumer<ContextKey<?>> consumer) {
+        REGISTRY.values().forEach(consumer);
     }
 }

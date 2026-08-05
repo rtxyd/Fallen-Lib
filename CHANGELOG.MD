@@ -2,6 +2,18 @@
 
 ## 1.4
 ---
+### 1.4.5
+
+#### Core
+- ContextKey is now abstract, changed how it works
+- Introduced `BiThreadCallBox`
+
+#### Runtime.forgemod
+- Introduced `CallKey` instead using ContextKey
+- `GameLifeCycleHelper` now has a standalone tick counter for client and server
+- `GameLifeCycleHelper` use `CallKey` to deal more conditions
+- `ServerClientCallBox` functions as `BiThreadCallBox` in runtime
+
 ### 1.4.4
 
 #### Runtime.forgemod
