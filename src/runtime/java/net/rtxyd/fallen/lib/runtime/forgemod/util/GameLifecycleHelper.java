@@ -97,9 +97,7 @@ public class GameLifecycleHelper {
     @SubscribeEvent
     static void onServerTickStart(TickEvent.ServerTickEvent e) {
         if (e.phase == TickEvent.Phase.START) {
-            if (!CALL_BOX.isEmpty()) {
-                CALL_BOX.clear();
-            }
+            CALL_BOX.clear();
         } else {
             MinecraftServer server = e.getServer();
             if (server == null) return;
@@ -117,9 +115,7 @@ public class GameLifecycleHelper {
     @SubscribeEvent
     static void onClientTickStart(TickEvent.ClientTickEvent e) {
         if (e.phase == TickEvent.Phase.START) {
-            if (!CALL_BOX.isEmpty()) {
-                CALL_BOX.clear();
-            }
+            CALL_BOX.clear();
         }
     }
     @SubscribeEvent
