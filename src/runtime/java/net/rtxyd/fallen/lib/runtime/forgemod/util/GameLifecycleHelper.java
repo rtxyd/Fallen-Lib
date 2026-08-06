@@ -14,7 +14,6 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft.SlotOnTakeEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKey;
@@ -30,26 +29,27 @@ import java.util.function.Consumer;
 @Mod.EventBusSubscriber
 public class GameLifecycleHelper {
     public static IClientPlayerSupplier pSupplier = () -> null;
+    static IClientThreadSupplier tSupplier = () -> null;
     private static int maxContainerMapSize = -1;
     static int serverCycleTickCount = -2;
     static int clientCycleTickCount = -2;
 
     private static final ContextKeyRegistry CTX_KEY_REG = new ContextKeyRegistry();
-    private static final ServerClientCallBox CALL_BOX = new ServerClientCallBox();
+    static final ServerClientCallBox CALL_BOX = new ServerClientCallBox();
     private static final Map<Container, Set<Player>> CONTAINER_PLAYER_MAP = new HashMap<>();
     private static final Map<Player, AbstractContainerMenu> PLAYER_MENU_SNAPSHOT = new HashMap<>();
 
     public static final CallKey<AbstractContainerMenu> LAST_MENU = CTX_KEY_REG.register("fallen_lib.player.menu", CallKey::new);
     public static final Consumer<Exception> EMPTY_EX_CONSUMER = o -> {};
 
-    public static <T> CallKey<T> registerContextKey(String id) {
+    public static <T> CallKey<T> registerCallKey(String id) {
         if (FallenLib.getStage() == FallenLib.Stage.COMPLETE) {
             throw new UnsupportedOperationException("ContextKey can only be registered on mod loading phase");
         }
         return CTX_KEY_REG.register(id, CallKey::new);
     }
 
-    public static <T> ContextKey<T> getContextKey(String id) {
+    public static <T> CallKey<T> getCallKey(String id) {
         return CTX_KEY_REG.get(id);
     }
 
@@ -61,18 +61,44 @@ public class GameLifecycleHelper {
         return CONTAINER_PLAYER_MAP.get(menu);
     }
 
+    /* this is a backward compatible layer for version 1.4.4 and before */
+    @Deprecated(forRemoval = true, since = "1.5.0")
+    public static <T> ContextKey<T> registerContextKey(String id) {
+        return registerCallKey(id);
+    }
+    @Deprecated(forRemoval = true, since = "1.5.0")
+    public static <T> ContextKey<T> getContextKey(String id) {
+        return getCallKey(id);
+    }
+    @Deprecated(forRemoval = true, since = "1.5.0")
+    public static <T> void submitContextCall(ContextKey<T> key, Callable<T> call) {
+        if (key instanceof CallKey<T> callKey) {
+            submitContextCall(callKey, call);
+        }
+    }
+    @Deprecated(forRemoval = true, since = "1.5.0")
+    public static <T> T callIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
+        if (key instanceof CallKey<T> callKey) {
+            return callIfSameTick(callKey, handleEx);
+        }
+        return null;
+    }
+    @Deprecated(forRemoval = true, since = "1.5.0")
+    public static <T> T callAndRemoveIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
+        if (key instanceof CallKey<T> callKey) {
+            return callAndRemoveIfSameTick(callKey, handleEx);
+        }
+        return null;
+    }
+
     public static <T> void submitContextCall(CallKey<T> key, Callable<T> call) {
-        key.resetCallCount();
+        key.init();
         CALL_BOX.submit(key, call);
     }
 
     public static <T> T callIfPresent(CallKey<T> key, Consumer<Exception> handleEx) {
-        if (key.getCallCount() < 0) {
-            key.init();
-        } else {
-            key.updateContext();
-            key.updateCallCount();
-        }
+        if (!key.isInitialized()) return null;
+        key.updateCallCount();
         return CALL_BOX.getAndCallIfPresent(key, handleEx);
     }
 
@@ -81,20 +107,32 @@ public class GameLifecycleHelper {
         return CALL_BOX.takeAndCallIfPresent(key, handleEx);
     }
 
-    public static <T> T callAndRemoveFirstOnly(CallKey<T> key, Consumer<Exception> handleEx) {
-        if (hasCalled(key)) return null;
+    public static <T> T callAndRemoveIfFirst(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (key.isCalled()) return null;
         key.resetCallCount();
         return CALL_BOX.takeAndCallIfPresent(key, handleEx);
     }
 
-    public static <T> T callAndRemoveSameTickOnly(CallKey<T> key, Consumer<Exception> handleEx) {
+    public static <T> T callAndRemoveIfCalled(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (!key.isCalled()) return null;
+        key.resetCallCount();
+        return CALL_BOX.takeAndCallIfPresent(key, handleEx);
+    }
+
+    public static <T> T callIfSameTick(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (!key.isInitialized() || !isInSameTick(key)) return null;
+        key.updateCallCount();
+        return CALL_BOX.getAndCallIfPresent(key, handleEx);
+    }
+
+    public static <T> T callAndRemoveIfSameTick(CallKey<T> key, Consumer<Exception> handleEx) {
         if (!isInSameTick(key)) return null;
         key.resetCallCount();
         return CALL_BOX.takeAndCallIfPresent(key, handleEx);
     }
 
-    public static <T> T callAndRemoveSameTickAndFirstOnly(CallKey<T> key, Consumer<Exception> handleEx) {
-        if (hasCalled(key) || !isInSameTick(key)) return null;
+    public static <T> T callAndRemoveIfSameTickFirst(CallKey<T> key, Consumer<Exception> handleEx) {
+        if (key.isCalled() || !isInSameTick(key)) return null;
         key.resetCallCount();
         return CALL_BOX.takeAndCallIfPresent(key, handleEx);
     }
@@ -114,10 +152,6 @@ public class GameLifecycleHelper {
 
     public static boolean isClientSide() {
         return !CALL_BOX.isThread0();
-    }
-
-    public static boolean hasCalled(CallKey<?> key) {
-        return key.getCallCount() > 0;
     }
 
     public static boolean isInSameTick(CallKey<?> key) {
@@ -160,13 +194,6 @@ public class GameLifecycleHelper {
         return localPlayer.level();
     }
 
-    @SubscribeEvent
-    static void onClientStart(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            CALL_BOX.setThread(1, Thread.currentThread());
-            clientCycleTickCount = 0;
-        });
-    }
     @SubscribeEvent
     static void onServerStart(ServerStartedEvent event) {
         CALL_BOX.setThread(0, Thread.currentThread());

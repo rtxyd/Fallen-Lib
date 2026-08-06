@@ -2,6 +2,11 @@
 
 ## 1.4
 ---
+### 1.4.6
+- Add backward compatibility for mod using version 1.4.4 and before
+- Fix client box not being initialized
+- Fix and tweak `GameLifeCycleHelper` methods
+
 ### 1.4.5
 
 #### Core
