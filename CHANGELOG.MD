@@ -3,6 +3,7 @@
 ## 1.4
 ---
 ### 1.4.6
+- (Released version) Improved performance when running high frequency tasks. 
 - Add backward compatibility for mod using version 1.4.4 and before
 - Fix client box not being initialized
 - Fix and tweak `GameLifeCycleHelper` methods
