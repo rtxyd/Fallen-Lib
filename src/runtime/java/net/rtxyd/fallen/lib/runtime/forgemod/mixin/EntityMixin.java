@@ -1,7 +1,6 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.mixin;
 
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.EntityCakyHandler;
 import net.rtxyd.fallen.lib.util.FinalObjectCaky;
 import net.rtxyd.fallen.lib.util.IObjectCaky;
@@ -9,8 +8,8 @@ import net.rtxyd.fallen.lib.util.ManualObjectCaky;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
-@Mixin(LivingEntity.class)
-public class LivingEntityMixin implements EntityCakyHandler {
+@Mixin(Entity.class)
+public class EntityMixin implements EntityCakyHandler {
     @Unique
     private volatile IObjectCaky fallen_lib$caky = null;
 
