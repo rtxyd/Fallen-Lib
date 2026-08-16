@@ -2,6 +2,7 @@ package net.rtxyd.fallen.lib.service;
 
 import cpw.mods.modlauncher.api.ITransformer;
 import cpw.mods.modlauncher.api.ITransformerVotingContext;
+import cpw.mods.modlauncher.api.TargetType;
 import cpw.mods.modlauncher.api.TransformerVoteResult;
 import net.rtxyd.fallen.lib.api.IFallenPatch;
 import net.rtxyd.fallen.lib.util.PatchUtil;
@@ -77,7 +78,12 @@ public final class FallenDelegatingTransformer implements ITransformer<ClassNode
     }
 
     @Override
-    public @NotNull Set<Target> targets() {
+    public @NotNull Set<Target<ClassNode>> targets() {
         return registry.targets().stream().map(Target::targetClass).collect(Collectors.toSet());
+    }
+
+    @Override
+    public @NotNull TargetType<ClassNode> getTargetType() {
+        return TargetType.CLASS;
     }
 }

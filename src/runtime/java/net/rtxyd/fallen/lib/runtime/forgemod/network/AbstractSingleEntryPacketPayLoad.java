@@ -29,16 +29,22 @@ public abstract class AbstractSingleEntryPacketPayLoad<E> implements IVanillaLik
     ) {
         return new FriendlyByteBufCodec<>() {
             @Override
-            public void encode(@NotNull P value, @NotNull FriendlyByteBuf buf) {
+            public void encode(@NotNull FriendlyByteBuf buf, @NotNull P value) {
                 buf.writeNbt((CompoundTag) entryCodec.encodeStart(NbtOps.INSTANCE, value.getEntry())
-                        .getOrThrow(false,s -> FallenLib.LOGGER.error("Failed parsing item for {}", value.getEntry())));
+                        .getOrThrow(s -> {
+                            FallenLib.LOGGER.error("Failed parsing item for {}", value.getEntry());
+                            return new RuntimeException(s);
+                        }));
             }
 
             @Override
             public @NotNull P decode(@NotNull FriendlyByteBuf buf) {
                 CompoundTag tag = buf.readNbt();
                 var result = entryCodec.decode(NbtOps.INSTANCE, tag)
-                        .getOrThrow(false,s -> FallenLib.LOGGER.error("Failed parsing received payload for {}", this.getClass().getName())).getFirst();
+                        .getOrThrow(s -> {
+                            FallenLib.LOGGER.error("Failed parsing received payload for {}", this.getClass().getName());
+                            return new RuntimeException(s);
+                        }).getFirst();
                 return constructor.apply(result);
             }
         };

@@ -5,7 +5,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.util.LazySupplier;
@@ -17,22 +18,22 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
-public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>> {
+public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>> implements IVanillaLikeCustomPacketPayload {
     public final ResourceLocation path;
     public final Supplier<T> item;
     @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends LazyRegistryBoundPacketPayLoad>, AbstractLazyPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
+    private static final Map<Type<? extends LazyRegistryBoundPacketPayLoad>, AbstractLazyPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     public static <A extends ICodecProvider<A>, B extends LazyRegistryBoundPacketPayLoad.IBegin, C extends LazyRegistryBoundPacketPayLoad<A>, D extends LazyRegistryBoundPacketPayLoad.IEnd>
-    AbstractLazyPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<?> registryClass) {
-        return (AbstractLazyPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryClass);
+    AbstractLazyPacketBoundRegistry<A, B, C, D> getBoundRegistry(Type<?> registryType) {
+        return (AbstractLazyPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryType);
     }
 
     static <A extends ICodecProvider<A>, B extends LazyRegistryBoundPacketPayLoad.IBegin, C extends LazyRegistryBoundPacketPayLoad<A>, D extends LazyRegistryBoundPacketPayLoad.IEnd>
-    void boundRegistrySingleton(Class<? extends LazyRegistryBoundPacketPayLoad<A>> packetClass, AbstractLazyPacketBoundRegistry<A, B, C ,D> instance) {
-        if (REGISTRY_SINGLETONS.putIfAbsent(packetClass, instance) != null) {
-            throw new UnsupportedOperationException("Payload " + packetClass.getName() + " is already bound to a registry singleton!");
+    void boundRegistrySingleton(Type<? extends LazyRegistryBoundPacketPayLoad<A>> packetType, AbstractLazyPacketBoundRegistry<A, B, C ,D> instance) {
+        if (REGISTRY_SINGLETONS.putIfAbsent(packetType, instance) != null) {
+            throw new UnsupportedOperationException("Payload " + packetType.id() + " is already bound to a registry singleton!");
         }
     }
 
@@ -51,10 +52,10 @@ public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>
     ) {
         return new FriendlyByteBufCodec<>() {
             @Override
-            public void encode(@NotNull ORIGIN value, @NotNull FriendlyByteBuf buf) {
+            public void encode(@NotNull FriendlyByteBuf buf, @NotNull ORIGIN value) {
                 buf.writeResourceLocation(value.getPath());
                 buf.writeNbt((CompoundTag) itemCodec.encodeStart(NbtOps.INSTANCE, value.getItem().get())
-                        .getOrThrow(false,s -> logger.error("Failed parsing item for {}", value.getItem())));
+                        .getOrThrow());
             }
 
             @Override
@@ -62,7 +63,7 @@ public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>
                 ResourceLocation path = buf.readResourceLocation();
                 CompoundTag tag = buf.readNbt();
                 Supplier<E> result = new LazySupplier<>(() -> itemCodec.decode(NbtOps.INSTANCE, tag)
-                        .getOrThrow(false,s -> logger.error("Failed parsing received payload for {}", path)).getFirst());
+                        .getOrThrow().getFirst());
                 return constructor.apply(path, result);
             }
         };
@@ -74,31 +75,24 @@ public abstract class LazyRegistryBoundPacketPayLoad<T extends ICodecProvider<T>
     }
 
     @SuppressWarnings("unchecked")
-    public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-        ((AbstractLazyPacketBoundRegistry<T, ?, ?, ?>)getBoundRegistry(this.getClass())).handleProcess(contextSupplier, this.getPath(), this.getItem());
+    @Override
+    public void handle(IPayloadContext contextSupplier) {
+        ((AbstractLazyPacketBoundRegistry<T, ?, ?, ?>)getBoundRegistry(this.type())).handleProcess(contextSupplier, this.getPath(), this.getItem());
     }
 
-    public static interface IBegin {
-        Class<?> getProcessClass();
+    public static interface IBegin extends IVanillaLikeCustomPacketPayload {
+        @NotNull Type<?> getProcessType();
 
-        static  Class<?> getProcessClassAuto(IBegin inst) {
-            return inst.getProcessClass();
-        }
-
-        default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(getProcessClassAuto(this)).handleBegin(contextSupplier);
+        default void handle(IPayloadContext contextSupplier) {
+            getBoundRegistry(this.getProcessType()).handleBegin(contextSupplier);
         }
     }
 
-    public static interface IEnd {
-        Class<?> getProcessClass();
+    public static interface IEnd extends IVanillaLikeCustomPacketPayload {
+        @NotNull Type<?> getProcessType();
 
-        static Class<?> getProcessClassAuto(IEnd inst) {
-            return inst.getProcessClass();
-        }
-
-        default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(getProcessClassAuto(this)).handleEnd(contextSupplier);
+        default void handle(IPayloadContext contextSupplier) {
+            getBoundRegistry(this.getProcessType()).handleEnd(contextSupplier);
         }
     }
 }
