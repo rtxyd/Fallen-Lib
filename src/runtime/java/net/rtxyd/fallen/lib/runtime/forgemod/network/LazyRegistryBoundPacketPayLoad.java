@@ -6,7 +6,6 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.util.LazySupplier;

@@ -28,7 +28,7 @@ public class Serialization {
     }
 
     public static boolean checkConditions(JsonObject json, ResourceLocation id, String path, Logger logger) {
-        if (ICondition.conditionsMatched(JsonOps.INSTANCE, json) && ICondition.conditionsMatched(JsonOps.INSTANCE, json)) {
+        if (ICondition.conditionsMatched(JsonOps.INSTANCE, json)) {
             return true;
         }
         logger.trace("Conditions not met: {} in {}", id, path);

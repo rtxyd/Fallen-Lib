@@ -37,7 +37,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
             String regPath = payload.getRegPath();
             var registry = DefaultPacketBoundRegistry.getDefaultSingletonByPath(regPath);
             if (registry == null) return;
-            FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload> codec = (FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload>) (Object) registry.getDefaultBufCodec();
+            FriendlyByteBufCodec codec = registry.getDefaultBufCodec();
             if (codec == null) return;
             codec.encode(buf, payload);
         }
