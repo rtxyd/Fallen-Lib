@@ -1,0 +1,18 @@
+package net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft.mob_effect;
+
+import net.minecraft.core.Holder;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+
+public interface IEffectHandler {
+
+    MobEffectInstance addEffectRet(MobEffectInstance effectInstance);
+
+    void addEffectSilent(MobEffectInstance effectInstance);
+
+    MobEffectInstance removeEffectRet(Holder<MobEffect> effect);
+
+    void removeEffectNoSync(Holder<MobEffect> effect);
+
+    MobEffectInstance removeEffectRet(Holder<MobEffect> effect, int amplifier);
+}

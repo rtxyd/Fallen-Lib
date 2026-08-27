@@ -1,6 +1,6 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.patch;
 
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixHelper;
+import dev.shadowsoffire.apotheosis.affix.AffixHelper;
 import net.rtxyd.fallen.lib.api.IFallenPatch;
 import net.rtxyd.fallen.lib.api.annotation.FallenPatch;
 import net.rtxyd.fallen.lib.api.annotation.Targets;

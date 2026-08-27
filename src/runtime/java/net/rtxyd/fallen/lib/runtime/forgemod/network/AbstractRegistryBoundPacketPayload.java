@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import org.apache.logging.log4j.Logger;
@@ -14,13 +14,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
 
 public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvider<E>> implements IVanillaLikeCustomPacketPayload {
     private final ResourceLocation path;
     private final E registryItem;
     @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends AbstractRegistryBoundPacketPayload>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
+    private static final Map<Type<? extends AbstractRegistryBoundPacketPayload>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
 
     protected AbstractRegistryBoundPacketPayload(ResourceLocation path, E registryItem) {
         this.path = path;
@@ -29,7 +28,7 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
 
     @SuppressWarnings("unchecked")
     protected Codec<E> getBoundItemCodec() {
-        var registry = getBoundRegistry(this.getClassAuto());
+        var registry = getBoundRegistry(this.type());
         if (registry == null) {
             throw new RuntimeException(String.format("Packet [%s] registry is not bound!", this.getClass()));
         }
@@ -44,26 +43,21 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
     }
 
     @SuppressWarnings("unchecked")
-    public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-        ((AbstractPacketBoundRegistry<E, ?, ?, ?>)getBoundRegistry(this.getClassAuto())).handleProcess(contextSupplier, this.getPath(), this.getItem());
-    }
-
-    @SuppressWarnings("unchecked")
-    public final Class<? extends AbstractRegistryBoundPacketPayload<E>> getClassAuto() {
-        return (Class<? extends AbstractRegistryBoundPacketPayload<E>>) this.getClass();
+    public void handle(IPayloadContext contextSupplier) {
+        ((AbstractPacketBoundRegistry<E, ?, ?, ?>)getBoundRegistry(this.type())).handleProcess(contextSupplier, this.getPath(), this.getItem());
     }
 
     static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    void boundRegistrySingleton(Class<? extends AbstractRegistryBoundPacketPayload<A>> packetClass, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
-        if (REGISTRY_SINGLETONS.putIfAbsent(packetClass, instance) != null) {
-            throw new UnsupportedOperationException("Payload " + packetClass.getName() + " is already bound to a registry singleton!");
+    void boundRegistrySingleton(Type<? extends AbstractRegistryBoundPacketPayload<A>> packetType, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
+        if (REGISTRY_SINGLETONS.putIfAbsent(packetType, instance) != null) {
+            throw new UnsupportedOperationException("Payload " + packetType.id() + " is already bound to a registry singleton!");
         }
     }
 
     @SuppressWarnings("unchecked")
     public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Class<?> registryClass) {
-        return (AbstractPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryClass);
+    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Type<?> registryType) {
+        return (AbstractPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryType);
     }
 
     public static <ORIGIN extends AbstractRegistryBoundPacketPayload<E>, E extends ICodecProvider<E>> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
@@ -73,10 +67,13 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
     ) {
         return new FriendlyByteBufCodec<>() {
             @Override
-            public void encode(@NotNull ORIGIN value, @NotNull FriendlyByteBuf buf) {
+            public void encode(@NotNull FriendlyByteBuf buf, @NotNull ORIGIN value) {
                 buf.writeResourceLocation(value.getPath());
                 buf.writeNbt((CompoundTag) itemCodec.encodeStart(NbtOps.INSTANCE, value.getItem())
-                        .getOrThrow(false,s -> logger.error("Failed parsing item for {}", value.getItem())));
+                        .getOrThrow(s -> {
+                            logger.error("Failed parsing item for {}", value.getItem());
+                            return new RuntimeException(s);
+                        }));
             }
 
             @Override
@@ -84,37 +81,30 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
                 ResourceLocation path = buf.readResourceLocation();
                 CompoundTag tag = buf.readNbt();
                 var result = itemCodec.decode(NbtOps.INSTANCE, tag)
-                        .getOrThrow(false,s -> logger.error("Failed parsing received payload for {}", path)).getFirst();
+                        .getOrThrow(s -> {
+                            logger.error("Failed parsing received payload for {}", path);
+                            return new RuntimeException(s);
+                        }).getFirst();
                 return constructor.apply(path, result);
             }
         };
     }
 
     public static interface IBegin extends IVanillaLikeCustomPacketPayload {
-        Class<?> getProcessClass();
-
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        static  Class<?> getProcessClassAuto(IBegin inst) {
-            return (Class<?>) inst.getProcessClass();
-        }
+        @NotNull Type<?> getProcessType();
 
         @Override
-        default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(getProcessClassAuto(this)).handleBegin(contextSupplier);
+        default void handle(IPayloadContext contextSupplier) {
+            getBoundRegistry(getProcessType()).handleBegin(contextSupplier);
         }
     }
 
     public static interface IEnd extends IVanillaLikeCustomPacketPayload {
-        Class<?> getProcessClass();
-
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        static Class<?> getProcessClassAuto(IEnd inst) {
-            return inst.getProcessClass();
-        }
+        @NotNull Type<?> getProcessType();
 
         @Override
-        default void handle(Supplier<NetworkEvent.Context> contextSupplier) {
-            getBoundRegistry(getProcessClassAuto(this)).handleEnd(contextSupplier);
+        default void handle(IPayloadContext contextSupplier) {
+            getBoundRegistry(getProcessType()).handleEnd(contextSupplier);
         }
     }
 }

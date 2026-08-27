@@ -2,9 +2,9 @@ package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import org.apache.logging.log4j.Logger;
 
 public class Serialization {
@@ -27,8 +27,8 @@ public class Serialization {
         return true;
     }
 
-    public static boolean checkConditions(JsonObject json, ResourceLocation id, String path, Logger logger, ICondition.IContext context) {
-        if (CraftingHelper.processConditions(json, "conditions", context) && CraftingHelper.processConditions(json, "forge:conditions", context)) {
+    public static boolean checkConditions(JsonObject json, ResourceLocation id, String path, Logger logger) {
+        if (ICondition.conditionsMatched(JsonOps.INSTANCE, json)) {
             return true;
         }
         logger.trace("Conditions not met: {} in {}", id, path);

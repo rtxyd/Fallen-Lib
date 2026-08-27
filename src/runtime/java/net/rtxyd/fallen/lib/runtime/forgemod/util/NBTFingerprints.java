@@ -1,5 +1,6 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.rtxyd.fallen.lib.util.IObjectCaky;
@@ -8,14 +9,14 @@ public final class NBTFingerprints {
 
     public static IObjectCaky.CakyReviewer<ItemStack> fullNBT() {
         return stack -> {
-            var tag = stack.getTag();
-            return tag != null ? tag.hashCode() : Integer.MIN_VALUE;
+            var tag = stack.getComponents();
+            return tag.hashCode();
         };
     }
 
-    public static IObjectCaky.CakyReviewer<ItemStack> subTag(String key) {
+    public static IObjectCaky.CakyReviewer<ItemStack> subTag(DataComponentType<?> key) {
         return stack -> {
-            var tag = stack.getTagElement(key);
+            var tag = stack.getComponents().get(key);
             return tag != null ? tag.hashCode() : Integer.MIN_VALUE;
         };
     }

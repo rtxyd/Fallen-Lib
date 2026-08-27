@@ -1,8 +1,8 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 
 import java.util.function.BiFunction;
@@ -22,11 +22,11 @@ public interface ILazyPacketBoundRegistry<E> {
 
     void validateItem(ResourceLocation loc, E item);
 
-    void handleBegin(Supplier<NetworkEvent.Context> contextSupplier);
+    void handleBegin(IPayloadContext contextSupplier);
 
-    void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, Supplier<E> item);
+    void handleProcess(IPayloadContext contextSupplier, ResourceLocation path, Supplier<E> item);
 
-    void handleEnd(Supplier<NetworkEvent.Context> contextSupplier);
+    void handleEnd(IPayloadContext contextSupplier);
 
     void applyTemp();
 
