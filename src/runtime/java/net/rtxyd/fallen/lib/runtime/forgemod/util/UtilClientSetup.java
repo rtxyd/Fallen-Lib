@@ -1,16 +1,15 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 
-@Mod.EventBusSubscriber(
+@EventBusSubscriber(
         modid = FallenLib.MODID,
-        bus = Mod.EventBusSubscriber.Bus.MOD,
         value = {Dist.CLIENT}
 )
 @OnlyIn(Dist.CLIENT)

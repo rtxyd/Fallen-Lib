@@ -2,6 +2,7 @@ package net.rtxyd.fallen.lib.extra.cmerge;
 
 import cpw.mods.modlauncher.api.ITransformer;
 import cpw.mods.modlauncher.api.ITransformerVotingContext;
+import cpw.mods.modlauncher.api.TargetType;
 import cpw.mods.modlauncher.api.TransformerVoteResult;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.tree.ClassNode;
@@ -27,7 +28,12 @@ public class FallenClassMergeTransformer implements ITransformer<ClassNode> {
     }
 
     @Override
-    public @NotNull Set<Target> targets() {
+    public @NotNull Set<Target<ClassNode>> targets() {
         return engine.getTargets();
+    }
+
+    @Override
+    public @NotNull TargetType<ClassNode> getTargetType() {
+        return TargetType.CLASS;
     }
 }

@@ -23,7 +23,7 @@ public class SupplierCodec<E> implements Codec<Supplier<E>> {
 
     @Override
     public <T> DataResult<Pair<Supplier<E>, T>> decode(DynamicOps<T> ops, T input) {
-        Supplier<E> supplier = new LazySupplier<>(() -> codec.decode(ops, input).getOrThrow(false, RuntimeException::new).getFirst());
+        Supplier<E> supplier = new LazySupplier<>(() -> codec.decode(ops, input).getOrThrow().getFirst());
         return DataResult.success(Pair.of(supplier, input));
     }
 }

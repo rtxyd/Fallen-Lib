@@ -16,14 +16,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.IHolderOwner;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.Serialization;
@@ -33,7 +32,6 @@ import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         PB extends AbstractRegistryBoundPacketPayload.IBegin,
@@ -96,11 +94,11 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     final void registerCommon() {
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
     }
 
     final void registerSync(EventPriority priority) {
-        MinecraftForge.EVENT_BUS.addListener(priority, this::syncClient);
+        NeoForge.EVENT_BUS.addListener(priority, this::syncClient);
     }
 
     @Override
@@ -122,10 +120,10 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
                 JsonObject obj;
                 if (Serialization.isNotNullOrIsJsonObj(ele, key, this.path, this.logger)) {
                     obj = ele.getAsJsonObject();
-                    if (Serialization.checkEmptyJsonObjAndLog(obj, key, this.path, this.logger) && Serialization.checkConditions(obj, key, this.path, this.logger, this.context)) {
-                        E deserialized = codec.decode(JsonOps.INSTANCE, obj).getOrThrow(false, s -> {}).getFirst();
+                    if (Serialization.checkEmptyJsonObjAndLog(obj, key, this.path, this.logger) && Serialization.checkConditions(obj, key, this.path, this.logger)) {
+                        E deserialized = codec.decode(JsonOps.INSTANCE, obj).getOrThrow().getFirst();
                         if (useTypeIdAsKey) {
-                            Optional<JsonElement> id = JsonOps.INSTANCE.get(obj, type).resultOrPartial(str -> {});
+                            Optional<JsonElement> id = JsonOps.INSTANCE.get(obj, type).resultOrPartial();
                             Optional<ResourceLocation> keyTypeId = id.map(t -> ResourceLocation.CODEC.decode(JsonOps.INSTANCE, t).resultOrPartial(logger::error).get().getFirst());
                             this.register(keyTypeId.get(), deserialized);
                         } else {
@@ -201,8 +199,8 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
                     if (key == null) {
                         return DataResult.error(() -> "Codec is not registered! Obj:" + input);
                     }
-                    T resultKey = ResourceLocation.CODEC.encodeStart(ops, key).getOrThrow(false, logger::error);
-                    T resultObj = codec.encode(input, ops, prefix).getOrThrow(false, logger::error);
+                    T resultKey = ResourceLocation.CODEC.encodeStart(ops, key).getOrThrow();
+                    T resultObj = codec.encode(input, ops, prefix).getOrThrow();
                     return ops.mergeToMap(resultObj, ops.createString(type), resultKey);
                 }
             };
@@ -262,12 +260,19 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
             throw new UnsupportedOperationException("Registry[" + this.getClass() + "] packet constructors are not initialized!");
         }
         ServerPlayer player = e.getPlayer();
-        PacketDistributor.PacketTarget target = player == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(() -> player);
-        Connection.sendToTarget(target, packetConstructors.beginConstructor().get());
-        registry.forEach((path, item) -> {
-            Connection.sendToTarget(target, packetConstructors.processConstructor().apply(path, item));
-        });
-        Connection.sendToTarget(target, packetConstructors.endConstructor().get());
+        if (player == null) {
+            Connection.sendToAllPlayers(packetConstructors.beginConstructor().get());
+            registry.forEach((path, item) -> {
+                Connection.sendToAllPlayers(packetConstructors.processConstructor().apply(path, item));
+            });
+            Connection.sendToAllPlayers(packetConstructors.endConstructor().get());
+        } else {
+            Connection.sendToPlayer(player, packetConstructors.beginConstructor().get());
+            registry.forEach((path, item) -> {
+                Connection.sendToPlayer(player, packetConstructors.processConstructor().apply(path, item));
+            });
+            Connection.sendToPlayer(player, packetConstructors.endConstructor().get());
+        }
     }
 
     @Override
@@ -297,21 +302,21 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     public void validateItem(ResourceLocation loc, E item) {}
 
     @Override
-    public final void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
-        contextSupplier.get().enqueueWork(this::beginSync);
+    public final void handleBegin(IPayloadContext contextSupplier) {
+        contextSupplier.enqueueWork(this::beginSync);
     }
 
     @Override
-    public final void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
-        contextSupplier.get().enqueueWork(() -> {
+    public final void handleProcess(IPayloadContext contextSupplier, ResourceLocation path, E item) {
+        contextSupplier.enqueueWork(() -> {
             this.registerTempEntry(path, item);
         });
     }
 
     @Override
-    public final void handleEnd(Supplier<NetworkEvent.Context> contextSupplier) {
+    public final void handleEnd(IPayloadContext contextSupplier) {
         if (ServerLifecycleHooks.getCurrentServer() != null) return;
-        contextSupplier.get().enqueueWork(() -> {
+        contextSupplier.enqueueWork(() -> {
             this.beginReload();
             this.applyTemp();
             this.onReload();

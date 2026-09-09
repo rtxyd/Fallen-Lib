@@ -1,12 +1,10 @@
 {
   "required": true,
-  "package": "net.rtxyd.fallen.lib.runtime.forgemod.mixin",
+  "package": "net.rtxyd.fallen.lib.runtime.forgemod.mixin.apoth",
   "compatibilityLevel": "JAVA_17",
   "refmap": "fallen_lib.refmap.json",
   "mixins": [
-    "AffixHelperMixin",
-    "LootCategoryFix",
-    "LootRarityMixin"
+    "AffixHelperMixin"
   ],
   "client": [
   ],

@@ -3,7 +3,7 @@ package net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.Event;
+import net.neoforged.bus.api.Event;
 
 public class SlotOnTakeEvent extends Event {
     private final Slot slot;

@@ -1,10 +1,10 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.patch.inserters;
 
-import dev.shadowsoffire.apotheosis.adventure.affix.Affix;
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixInstance;
+import dev.shadowsoffire.apotheosis.affix.Affix;
+import dev.shadowsoffire.apotheosis.affix.AffixInstance;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 import net.rtxyd.fallen.lib.api.annotation.FallenInserter;
 import net.rtxyd.fallen.lib.api.annotation.Notes;
 import net.rtxyd.fallen.lib.api.annotation.Params;
@@ -23,7 +23,7 @@ public class Inserters {
     // java/util/HashMap.put (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
     public static AffixInstance hookAffixApply(IInserterContext<HashMap<DynamicHolder<? extends Affix>, AffixInstance>, INull> ctx, Object... args) {
         AffixApplyEvent event = new AffixApplyEvent((ItemStack) args[0], (AffixInstance) args[2]);
-        MinecraftForge.EVENT_BUS.post(event);
+        NeoForge.EVENT_BUS.post(event);
         return event.getAffix();
     }
 }

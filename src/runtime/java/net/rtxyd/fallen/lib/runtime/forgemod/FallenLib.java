@@ -1,12 +1,12 @@
 package net.rtxyd.fallen.lib.runtime.forgemod;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.network.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,8 +16,8 @@ import org.jetbrains.annotations.NotNull;
 public class FallenLib {
     public static final String MODID = "fallen_lib";
     public static final Logger LOGGER = LogManager.getLogger("fallen_lib");
-    public FallenLib(FMLJavaModLoadingContext context) {
-        IEventBus bus = context.getModEventBus();
+    public FallenLib(IEventBus bus, ModContainer modContainer) {
+        LOGGER.info("Fallen lib init");
         bus.addListener(EventPriority.HIGH, this::init);
         bus.addListener(EventPriority.NORMAL, Connection::init);
         bus.addListener(this::complete);

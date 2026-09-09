@@ -219,7 +219,7 @@ public class SimpleClassMergeEngine implements IClassMergeEngine {
         }
     }
 
-    public @NotNull Set<ITransformer.Target> getTargets() {
+    public @NotNull Set<ITransformer.Target<ClassNode>> getTargets() {
         return merges.keySet().stream().map(ITransformer.Target::targetClass).collect(Collectors.toSet());
     }
 }
