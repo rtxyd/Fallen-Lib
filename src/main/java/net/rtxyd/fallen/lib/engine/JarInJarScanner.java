@@ -35,19 +35,19 @@ public class JarInJarScanner implements ResourceScanner {
     @Override
     public void scan(ResourceConsumer consumer) throws IOException {
 //        if (!nestHostFile.getName().equals(FallenCoreLib.MOD_NAME)) return;
-        scanA(consumer);
+        scanA(consumer, new LinkedList<>());
     }
 
-    public void scanA(ResourceConsumer consumer) throws IOException {
+    public void scanA(ResourceConsumer consumer, LinkedList<JarEntry> pEntries) throws IOException {
         JarInputStream jar = new JarInputStream(iStream);
-        LinkedList<JarEntry> entries = new LinkedList<>();
+        LinkedList<JarEntry> entries = new LinkedList<>(pEntries);
         entries.add(entry);
         JarInJarContainer container = new JarInJarContainer(nestHostFile, entries, entry);
         JarEntry jarEntry;
         while ((jarEntry = jar.getNextJarEntry()) != null) {
             if (jarEntry.isDirectory()) continue;
             if (jarEntry.getName().endsWith(".jar")) {
-                new JarInJarScanner(nestHostFile, jar, streamState, jarEntry).scanA(consumer);
+                new JarInJarScanner(nestHostFile, jar, streamState, jarEntry).scanA(consumer, entries);
             }
             consumer.accept(new JarInJarResource(container, new SafeUncloseableInputStream(jar), streamState, jarEntry));
         }
