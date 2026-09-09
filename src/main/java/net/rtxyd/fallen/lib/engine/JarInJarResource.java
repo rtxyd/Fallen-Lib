@@ -87,12 +87,16 @@ public class JarInJarResource implements Resource {
 
     public void readFromParentConsume(JarInputStream parentJar, AtomicInteger depth, Predicate<JarEntry> checkEntry, BiConsumer<JarEntry, InputStream> consumer) throws IOException {
         JarEntry entry;
+        boolean found = false;
         while((entry = parentJar.getNextJarEntry()) != null) {
             if (checkEntry.test(entry)) {
+                found = true;
                 consumer.accept(entry, parentJar);
             }
         }
-        throw new RuntimeException(String.format("Can't find JarEntry: [ %s ] in parent jar in jar [ %s ]. It should be there.", selfEntry.getName(), calculateLocation(depth.get())));
+        if (!found) {
+            throw new RuntimeException(String.format("Can't find JarEntry: [ %s ] in parent jar in jar [ %s ]. It should be there.", selfEntry.getName(), calculateLocation(depth.get())));
+        }
     }
 
     private JarInputStream recursiveRead(LinkedList<JarEntry> jarFileList, JarInputStream jis, AtomicInteger depth) throws IOException {
