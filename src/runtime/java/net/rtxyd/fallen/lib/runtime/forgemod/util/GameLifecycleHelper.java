@@ -229,6 +229,7 @@ public class GameLifecycleHelper {
         }
         CONTAINER_PLAYER_MAP.entrySet().removeIf(e -> e.getValue().isEmpty());
     }
+    // this needs to be tweaked
     @SubscribeEvent
     static void onSlotTake(SlotOnTakeEvent e) {
         EventKeys.SLOT_ON_TAKE.fire(e.getSlot(), e.getPlayer(), e.getStack());
