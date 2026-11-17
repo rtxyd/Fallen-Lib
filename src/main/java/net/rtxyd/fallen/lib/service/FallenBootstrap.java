@@ -4,6 +4,7 @@ import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.ITransformationService;
 import cpw.mods.modlauncher.api.ITransformer;
 import net.rtxyd.fallen.lib.extra.cmerge.FallenClassMergeTransformer;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public final class FallenBootstrap implements ITransformationService {
     }
 
     @Override
-    public List<ITransformer> transformers() {
+    public @NotNull List<? extends ITransformer<?>> transformers() {
         LOGGER.info("Creating delegating transformer.");
         return List.of(new FallenDelegatingTransformer(box.patchRegistry, new DefaultPatchCtorContext(box.patchRegistry.classBytes.keySet())),
                 new FallenClassMergeTransformer(box.embeddedRegistry.classMergeEngine));

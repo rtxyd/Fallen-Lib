@@ -1,11 +1,11 @@
-package net.rtxyd.fallen.lib.runtime.forgemod.mixin;
+package net.rtxyd.fallen.lib.runtime.forgemod.mixin.apoth;
 
-import dev.shadowsoffire.apotheosis.adventure.affix.Affix;
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixHelper;
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixInstance;
+import dev.shadowsoffire.apotheosis.affix.Affix;
+import dev.shadowsoffire.apotheosis.affix.AffixHelper;
+import dev.shadowsoffire.apotheosis.affix.AffixInstance;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.event.AffixCacheRefreshEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.event.AffixGetFinishEvent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,7 +28,7 @@ public class AffixHelperMixin {
     private static Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> hookCacheUpdate(Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> deserializer) {
         return stack -> {
             AffixCacheRefreshEvent event = new AffixCacheRefreshEvent(deserializer, stack);
-            MinecraftForge.EVENT_BUS.post(event);
+            NeoForge.EVENT_BUS.post(event);
             return event.getAffixes();
         };
     }
@@ -37,7 +37,7 @@ public class AffixHelperMixin {
     private static void hookGetAffixes(ItemStack stack, CallbackInfoReturnable<Map<DynamicHolder<? extends Affix>, AffixInstance>> cir) {
         if (cir.getReturnValue().equals(Collections.emptyMap())) return;
         AffixGetFinishEvent event = new AffixGetFinishEvent(stack, cir.getReturnValue());
-        MinecraftForge.EVENT_BUS.post(event);
+        NeoForge.EVENT_BUS.post(event);
         cir.setReturnValue(event.getAffixesView());
     }
 }

@@ -9,7 +9,7 @@ public class MiscUtil {
     public static <T> FriendlyByteBufCodec<T> createSingleStringBufCodec(Function<T, String> getter, Function<String, T> ctor) {
         return new FriendlyByteBufCodec<T>() {
             @Override
-            public void encode(@NotNull T value, @NotNull FriendlyByteBuf buf) {
+            public void encode(@NotNull FriendlyByteBuf buf, @NotNull T value) {
                 String s = getter.apply(value);
                 buf.writeInt(s.length());
                 buf.writeUtf(s);

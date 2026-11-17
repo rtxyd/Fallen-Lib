@@ -1,17 +1,17 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.event;
 
-import dev.shadowsoffire.apotheosis.adventure.affix.Affix;
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixInstance;
+import dev.shadowsoffire.apotheosis.affix.Affix;
+import dev.shadowsoffire.apotheosis.affix.AffixInstance;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.Event;
+import net.neoforged.bus.api.Event;
 
 import java.util.Collections;
 import java.util.Map;
 
 /**
  * Fires both sides.
- * Fires when {@link dev.shadowsoffire.apotheosis.adventure.affix.AffixHelper#getAffixes(ItemStack)} return
+ * Fires when {@link dev.shadowsoffire.apotheosis.affix.AffixHelper#getAffixes(ItemStack)} return
  */
 public class AffixGetFinishEvent extends Event {
     private final ItemStack stack;
