@@ -4,6 +4,8 @@
 ---
 ### 2.0.0
 - Neoforge 1.21.1
+#### Runtime.forgemod
+- Add StreamCodec for PacketBoundRegistry
 
 ## 1.4
 ---

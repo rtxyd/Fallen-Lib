@@ -11,6 +11,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -61,7 +63,8 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
 
     Constructors3Special<E, PB, P, PE> packetConstructors;
     private Codec<E> singletonBoundCodec;
-    private Codec<BoundHolder<E>> holderCodec;
+    private final Codec<BoundHolder<E>> holderCodec;
+    private final StreamCodec<ByteBuf, BoundHolder<E>> holderStreamCodec;
 
     public AbstractLazyPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(new Gson(), path);
@@ -74,6 +77,7 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
         this.initSingletonBoundCodec();
         this.registerBuiltinCodecs();
         this.holderCodec = ResourceLocation.CODEC.xmap(this::holder, BoundHolder::getId);
+        this.holderStreamCodec = ResourceLocation.STREAM_CODEC.map(this::holder, BoundHolder::getId);
     }
 
     final void initPacketsConstructors(Constructors3Special<E, PB, P, PE> constructors) {
@@ -368,5 +372,9 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
 
     public final Codec<BoundHolder<E>> getHolderCodec() {
         return holderCodec;
+    }
+
+    public StreamCodec<ByteBuf, BoundHolder<E>> getHolderStreamCodec() {
+        return holderStreamCodec;
     }
 }

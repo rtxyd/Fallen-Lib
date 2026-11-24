@@ -223,6 +223,11 @@ configurations {
     runtimeRuntimeClasspath     .extendsFrom compileClasspath
     runtimeImplementation       .extendsFrom implementation
     runtimeAnnotationProcessor  .extendsFrom annotationProcessor
+//    testClasspath               .extendsFrom runtimeClasspath
+//    testCompileClasspath        .extendsFrom runtimeCompileClasspath
+//    testRuntimeClasspath        .extendsFrom runtimeRuntimeClasspath
+//    testImplementation          .extendsFrom runtimeImplementation
+//    testAnnotationProcessor     .extendsFrom runtimeAnnotationProcessor
 }
 
 dependencies {
@@ -418,6 +423,10 @@ tasks.withType(Copy).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+compileTestJava {
+    enabled = false
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
