@@ -204,7 +204,7 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
 
                 @Override
                 public <T> DataResult<T> encode(E input, DynamicOps<T> ops, T prefix) {
-                    Codec<E> codec = (Codec<E>) input.fallen_lib$getCodec();
+                    Codec<E> codec = (Codec<E>) input.getCodec();
                     ResourceLocation key = CODEC_MAP.inverse().get(codec);
                     if (key == null) {
                         return DataResult.error(() -> "Codec is not registered! Obj:" + input);
@@ -358,7 +358,7 @@ public abstract class AbstractLazyPacketBoundRegistry<E extends ICodecProvider<E
     }
 
     @Override
-    public final Codec<E> fallen_lib$getCodec() {
+    public final Codec<E> getCodec() {
         return this.singletonBoundCodec;
     }
 

@@ -96,7 +96,7 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
                     buf.writeInt(regPath.length());
                     buf.writeUtf(regPath);
                     buf.writeResourceLocation(value.getPath());
-                    buf.writeNbt((CompoundTag) fallen_lib$getCodec().encodeStart(NbtOps.INSTANCE, value.getItem())
+                    buf.writeNbt((CompoundTag) getCodec().encodeStart(NbtOps.INSTANCE, value.getItem())
                             .getOrThrow(s -> {
                                 logger.error("Failed parsing item for {}", value.getItem());
                                 return new RuntimeException(s);
@@ -109,7 +109,7 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
                     String regPath = buf.readUtf(length);
                     ResourceLocation path = buf.readResourceLocation();
                     CompoundTag tag = buf.readNbt();
-                    var result = fallen_lib$getCodec().decode(NbtOps.INSTANCE, tag)
+                    var result = getCodec().decode(NbtOps.INSTANCE, tag)
                             .getOrThrow(s -> {
                                 logger.error("Failed parsing received payload for {}", path);
                                 return new RuntimeException(s);

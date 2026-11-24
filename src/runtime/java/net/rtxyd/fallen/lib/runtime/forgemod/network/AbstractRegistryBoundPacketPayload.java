@@ -32,7 +32,7 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         if (registry == null) {
             throw new RuntimeException(String.format("Packet [%s] registry is not bound!", this.getClass()));
         }
-        return (Codec<E>) registry.fallen_lib$getCodec();
+        return (Codec<E>) registry.getCodec();
     }
 
     public final ResourceLocation getPath() {
