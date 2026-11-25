@@ -17,10 +17,7 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft.SlotOnTakeEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKey;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKeys;
-import net.rtxyd.fallen.lib.util.call.ContextKey;
 import net.rtxyd.fallen.lib.util.call.ContextKeyRegistry;
 
 import java.util.*;
@@ -60,36 +57,6 @@ public class GameLifecycleHelper {
 
     public static Set<Player> getContainerActivePlayers(Container menu) {
         return CONTAINER_PLAYER_MAP.get(menu);
-    }
-
-    /* this is a backward compatible layer for version 1.4.4 and before */
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> ContextKey<T> registerContextKey(String id) {
-        return registerCallKey(id);
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> ContextKey<T> getContextKey(String id) {
-        return getCallKey(id);
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> void submitContextCall(ContextKey<T> key, Callable<T> call) {
-        if (key instanceof CallKey<T> callKey) {
-            submitContextCall(callKey, call);
-        }
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> T callIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
-        if (key instanceof CallKey<T> callKey) {
-            return callIfSameTick(callKey, handleEx);
-        }
-        return null;
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> T callAndRemoveIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
-        if (key instanceof CallKey<T> callKey) {
-            return callAndRemoveIfSameTick(callKey, handleEx);
-        }
-        return null;
     }
 
     public static <T> void submitContextCall(CallKey<T> key, Callable<T> call) {
@@ -208,7 +175,6 @@ public class GameLifecycleHelper {
     @SubscribeEvent
     static void onServerStopped(ServerStoppedEvent e) {
         CALL_BOX.clear();
-        EventKeys.clearAll();
         CONTAINER_PLAYER_MAP.clear();
         PLAYER_MENU_SNAPSHOT.clear();
         CTX_KEY_REG.forEachContextKey(c -> {
@@ -228,10 +194,6 @@ public class GameLifecycleHelper {
             set.remove(p);
         }
         CONTAINER_PLAYER_MAP.entrySet().removeIf(e -> e.getValue().isEmpty());
-    }
-    @SubscribeEvent
-    static void onSlotTake(SlotOnTakeEvent e) {
-        EventKeys.SLOT_ON_TAKE.fire(e.getSlot(), e.getPlayer(), e.getStack());
     }
     @SubscribeEvent
     static void onPlayerTick(PlayerTickEvent.Post e) {
@@ -303,7 +265,6 @@ public class GameLifecycleHelper {
                 pSet.remove(p);
                 if (pSet.isEmpty()) {
                     CONTAINER_PLAYER_MAP.remove(last);
-                    EventKeys.SLOT_ON_TAKE.cleanup(last);
                 }
             }
         }

@@ -5,12 +5,12 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.Event;
 
-public class SlotOnTakeEvent extends Event {
+public class CombinerResultOnTakeEvent extends Event {
     private final Slot slot;
     private final Player player;
     private final ItemStack stack;
 
-    public SlotOnTakeEvent(Slot slot, Player player, ItemStack stack) {
+    public CombinerResultOnTakeEvent(Slot slot, Player player, ItemStack stack) {
         this.slot = slot;
         this.player = player;
         this.stack = stack;

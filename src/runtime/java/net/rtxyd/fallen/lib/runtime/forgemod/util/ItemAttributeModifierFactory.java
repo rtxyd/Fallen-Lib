@@ -1,23 +1,25 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ItemAttributeModifierFactory {
-    private final Map<Holder<Attribute>, OperationValues<UUID>> ATTR_UUID_CACHE = new HashMap<>();
+    private final Map<Holder<Attribute>, OperationValues<ResourceLocation>> ATTR_ID_CACHE = new HashMap<>();
     private final Map<Holder<Attribute>, OperationValues<String>> ATTR_NAME_CACHE = new HashMap<>();
-    private final String prefixName;
-    public ItemAttributeModifierFactory(String prefixName) {
-        this.prefixName = prefixName;
+    private final String nameSpace;
+    private final String pathPrefix;
+    public ItemAttributeModifierFactory(String nameSpace, String pathPrefix) {
+        this.nameSpace = nameSpace;
+        this.pathPrefix = pathPrefix;
     }
     public record ItemModifierValues(Holder<Attribute> attr, double addition, double multipliedBase, double multipliedTotal) {}
-    public record OperationValues<T>(T addition, T multipliedBase, T multipliedTotal) {}
+    public record OperationValues<T>(T addValue, T addMultipliedBase, T addMultipliedTotal) {}
 
     public List<ItemModifierValues> computeModifierValues(ItemAttributeModifierEvent event) {
         var multiModifiers = event.getModifiers();
@@ -42,21 +44,21 @@ public class ItemAttributeModifierFactory {
         }
         return list;
     }
-    public OperationValues<UUID> getGlobalUUIDs(Holder<Attribute> attr) {
-        return ATTR_UUID_CACHE.computeIfAbsent(attr, v -> {
+    public OperationValues<ResourceLocation> getGlobalIDs(Holder<Attribute> attr) {
+        return ATTR_ID_CACHE.computeIfAbsent(attr, v -> {
             OperationValues<String> names = getAttrNames(attr);
             return new OperationValues<>(
-                    UUID.nameUUIDFromBytes(names.addition.getBytes(StandardCharsets.UTF_8)),
-                    UUID.nameUUIDFromBytes(names.multipliedBase.getBytes(StandardCharsets.UTF_8)),
-                    UUID.nameUUIDFromBytes(names.multipliedTotal.getBytes(StandardCharsets.UTF_8))
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addValue),
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addMultipliedBase),
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addMultipliedTotal)
             );
         });
     }
     public OperationValues<String> getAttrNames(Holder<Attribute> attr) {
         return ATTR_NAME_CACHE.computeIfAbsent(attr, a -> new OperationValues<>(
-                prefixName + "[" + attr.getKey() + 0 + "]",
-                prefixName + "[" + attr.getKey() + 1 + "]",
-                prefixName + "[" + attr.getKey() + 2 + "]")
+                pathPrefix + "[" + attr.getKey() + 0 + "]",
+                pathPrefix + "[" + attr.getKey() + 1 + "]",
+                pathPrefix + "[" + attr.getKey() + 2 + "]")
         );
     }
 }
