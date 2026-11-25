@@ -5,20 +5,20 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.rtxyd.fallen.lib.util.IObjectCaky;
 
-public final class NBTFingerprints {
+import java.util.Arrays;
+import java.util.Objects;
 
-    public static IObjectCaky.CakyReviewer<ItemStack> fullNBT() {
+public final class Fingerprints {
+
+    public static IObjectCaky.CakyReviewer<ItemStack> fullComponents() {
         return stack -> {
             var tag = stack.getComponents();
             return tag.hashCode();
         };
     }
 
-    public static IObjectCaky.CakyReviewer<ItemStack> subTag(DataComponentType<?> key) {
-        return stack -> {
-            var tag = stack.getComponents().get(key);
-            return tag != null ? tag.hashCode() : Integer.MIN_VALUE;
-        };
+    public static IObjectCaky.CakyReviewer<ItemStack> components(DataComponentType<?>... keys) {
+        return stack -> Arrays.hashCode(Arrays.stream(keys).map(stack::get).filter(Objects::nonNull).toArray());
     }
 
     public static IObjectCaky.CakyReviewer<Entity> entityFullNBT() {
