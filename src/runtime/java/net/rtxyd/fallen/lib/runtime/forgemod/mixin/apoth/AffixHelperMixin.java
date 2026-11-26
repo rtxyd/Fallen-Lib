@@ -25,7 +25,7 @@ public class AffixHelperMixin {
             at = @At(value = "INVOKE",
                     target = "Ldev/shadowsoffire/placebo/util/CachedObject$CachedObjectSource;getOrCreate(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/resources/ResourceLocation;Ljava/util/function/Function;Ljava/util/function/ToIntFunction;)Ljava/lang/Object;"),
             index = 2)
-    private static Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> hookCacheUpdate(Function<ItemStack, Map<DynamicHolder<? extends Affix>, AffixInstance>> deserializer) {
+    private static Function<ItemStack, Map<DynamicHolder<Affix>, AffixInstance>> hookCacheUpdate(Function<ItemStack, Map<DynamicHolder<Affix>, AffixInstance>> deserializer) {
         return stack -> {
             AffixCacheRefreshEvent event = new AffixCacheRefreshEvent(deserializer, stack);
             NeoForge.EVENT_BUS.post(event);
@@ -34,7 +34,7 @@ public class AffixHelperMixin {
     }
 
     @Inject(method = "getAffixes(Lnet/minecraft/world/item/ItemStack;)Ljava/util/Map;", at = @At(value = "RETURN"), cancellable = true)
-    private static void hookGetAffixes(ItemStack stack, CallbackInfoReturnable<Map<DynamicHolder<? extends Affix>, AffixInstance>> cir) {
+    private static void hookGetAffixes(ItemStack stack, CallbackInfoReturnable<Map<DynamicHolder<Affix>, AffixInstance>> cir) {
         if (cir.getReturnValue().equals(Collections.emptyMap())) return;
         AffixGetFinishEvent event = new AffixGetFinishEvent(stack, cir.getReturnValue());
         NeoForge.EVENT_BUS.post(event);

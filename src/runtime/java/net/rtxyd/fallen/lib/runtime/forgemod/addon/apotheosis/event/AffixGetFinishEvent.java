@@ -15,9 +15,9 @@ import java.util.Map;
  */
 public class AffixGetFinishEvent extends Event {
     private final ItemStack stack;
-    private Map<DynamicHolder<? extends Affix>, AffixInstance> affixes;
+    private Map<DynamicHolder<Affix>, AffixInstance> affixes;
 
-    public AffixGetFinishEvent(ItemStack stack, Map<DynamicHolder<? extends Affix>, AffixInstance> affixes) {
+    public AffixGetFinishEvent(ItemStack stack, Map<DynamicHolder<Affix>, AffixInstance> affixes) {
         this.stack = stack;
         this.affixes = affixes;
     }
@@ -26,11 +26,11 @@ public class AffixGetFinishEvent extends Event {
         return stack;
     }
 
-    public Map<DynamicHolder<? extends Affix>, AffixInstance> getAffixesView() {
+    public Map<DynamicHolder<Affix>, AffixInstance> getAffixesView() {
         return affixes;
     }
 
-    public void setTransientAffixes(Map<DynamicHolder<? extends Affix>, AffixInstance> affixes) {
+    public void setTransientAffixes(Map<DynamicHolder<Affix>, AffixInstance> affixes) {
         this.affixes = Collections.unmodifiableMap(affixes);
     }
 }
