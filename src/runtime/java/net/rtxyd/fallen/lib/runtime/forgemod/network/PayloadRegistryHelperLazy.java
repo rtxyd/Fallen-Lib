@@ -1,11 +1,14 @@
+/*
 package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,27 +16,26 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 public class PayloadRegistryHelperLazy<I extends ICodecProvider<I>,
-        PB extends LazyRegistryBoundPacketPayLoad.IBegin,
-        P extends LazyRegistryBoundPacketPayLoad<I>,
-        PE extends LazyRegistryBoundPacketPayLoad.IEnd,
-        R extends AbstractLazyPacketBoundRegistry<I, PB, P, PE>> implements IPayloadRegisterHelper {
+        P extends IVanillaLikeCustomPacketPayload,
+        R extends AbstractLazyPacketBoundRegistry<I>>
+        implements IPayloadRegisterHelper {
     R registrySingleton;
-    PayloadDefinition<PB> beginDef;
-    Supplier<PB> beginConstructor;
+    PayloadDefinition<P> beginDef;
+    Supplier<P> beginConstructor;
 
     PayloadDefinition<P> processDef;
     BiFunction<ResourceLocation, Supplier<I>, P> processConstructor;
 
-    PayloadDefinition<PE> endDef;
-    Supplier<PE> endConstructor;
+    PayloadDefinition<P> endDef;
+    Supplier<P> endConstructor;
 
     EventPriority eventPriority;
     int sortPriority = 0;
 
     public PayloadRegistryHelperLazy(R registrySingleton,
-                                 PayloadDefinition<PB> beginDef, Supplier<PB> beginConstructor,
+                                 PayloadDefinition<P> beginDef, Supplier<P> beginConstructor,
                                  PayloadDefinition<P> processDef, BiFunction<ResourceLocation, Supplier<I>, P> processConstructor,
-                                 PayloadDefinition<PE> endDef, Supplier<PE> endConstructor,
+                                 PayloadDefinition<P> endDef, Supplier<P> endConstructor,
                                  EventPriority eventPriority) {
         this.registrySingleton = registrySingleton;
         this.beginDef = beginDef;
@@ -45,8 +47,8 @@ public class PayloadRegistryHelperLazy<I extends ICodecProvider<I>,
         this.eventPriority = eventPriority;
     }
 
-    public ILazyPacketBoundRegistry.Constructors3Special<I, PB, P, PE> constructors3() {
-        return new ILazyPacketBoundRegistry.Constructors3Special<>(beginConstructor, processConstructor, endConstructor);
+    public Constructors3Lazy<I> constructors3() {
+        return new Constructors3Lazy<>(beginConstructor, processConstructor, endConstructor);
     }
 
     @Override
@@ -64,9 +66,34 @@ public class PayloadRegistryHelperLazy<I extends ICodecProvider<I>,
     @Override
     public void initSingleton() {
         registrySingleton.registerCommon();
-        registrySingleton.initPacketsConstructors(constructors3());
+        registrySingleton.initPacketsHandler(new IRegistrySyncHandler<I>() {
+            Constructors3Lazy<I> constructors3;
+
+            @Override
+            public void begin(@Nullable ServerPlayer player) {
+                Connection.sendToPlayerOrAll(player, getConstructors3().beginConstructor().get());
+            }
+
+            @Override
+            public void process(@Nullable ServerPlayer player, ResourceLocation path, I item) {
+                Connection.sendToPlayerOrAll(player, getConstructors3().processConstructor().apply(path, () -> item));
+            }
+
+            @Override
+            public void end(@Nullable ServerPlayer player) {
+                Connection.sendToPlayerOrAll(player, getConstructors3().endConstructor().get());
+            }
+
+            public Constructors3Lazy<I> getConstructors3() {
+                if (constructors3 == null) {
+                    constructors3 = constructors3();
+                    return constructors3;
+                }
+                return constructors3;
+            }
+        });
         AbstractLazyPacketBoundRegistry.registerSingleton(registrySingleton);
-        LazyRegistryBoundPacketPayLoad.boundRegistrySingleton(processDef.type(), registrySingleton);
+        LazyRegistryBoundPacketPayLoad.boundRegistrySingleton(processDef.type(), (AbstractLazyPacketBoundRegistry) registrySingleton);
         registrySingleton.registerSyncWithPriority(eventPriority);
     }
 
@@ -75,3 +102,4 @@ public class PayloadRegistryHelperLazy<I extends ICodecProvider<I>,
         return 0;
     }
 }
+*/
