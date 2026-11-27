@@ -7,6 +7,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
+import net.rtxyd.fallen.lib.runtime.forgemod.addon.Common;
 import net.rtxyd.fallen.lib.runtime.forgemod.network.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +22,7 @@ public class FallenLib {
         bus.addListener(EventPriority.HIGH, this::init);
         bus.addListener(EventPriority.NORMAL, Connection::init);
         bus.addListener(this::complete);
+        Common.bootstrap(bus);
     }
 
     public static ResourceLocation id(@NotNull String path) {
