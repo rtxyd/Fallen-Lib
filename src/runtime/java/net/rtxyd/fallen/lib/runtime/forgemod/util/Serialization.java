@@ -2,8 +2,10 @@ package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.common.conditions.ConditionalOps;
 import net.neoforged.neoforge.common.conditions.ICondition;
 import org.apache.logging.log4j.Logger;
 
@@ -27,8 +29,8 @@ public class Serialization {
         return true;
     }
 
-    public static boolean checkConditions(JsonObject json, ResourceLocation id, String path, Logger logger) {
-        if (ICondition.conditionsMatched(JsonOps.INSTANCE, json)) {
+    public static boolean checkConditions(JsonObject json, ResourceLocation id, String path, Logger logger, ConditionalOps<JsonElement> ops) {
+        if (ICondition.conditionsMatched(ops, json)) {
             return true;
         }
         logger.trace("Conditions not met: {} in {}", id, path);

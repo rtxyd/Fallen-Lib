@@ -175,6 +175,7 @@ public class GameLifecycleHelper {
     @SubscribeEvent
     static void onServerStopped(ServerStoppedEvent e) {
         CALL_BOX.clear();
+        CALL_BOX.setThread(0, null);
         CONTAINER_PLAYER_MAP.clear();
         PLAYER_MENU_SNAPSHOT.clear();
         CTX_KEY_REG.forEachContextKey(c -> {
