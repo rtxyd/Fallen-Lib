@@ -17,24 +17,24 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> extends AbstractPacketBoundRegistry<E, DefaultRegistryBoundPacketPayload.Begin, DefaultRegistryBoundPacketPayload<E>, DefaultRegistryBoundPacketPayload.End> {
+public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<? super E>> extends AbstractPacketBoundRegistry<E> {
     protected FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<E>> defaultBufCodec;
     private static final Map<String, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS_BY_PATH = new HashMap<>();
     private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new HashMap<>();
 
-    public DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
+    private DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(logger, path, type, locFilter, doSync, useTypeIdAsKey);
         this.initSingletonBoundCodec();
         this.defaultBufCodec = createDefaultByteBufCodec(logger, DefaultRegistryBoundPacketPayload::new);
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends ICodecProvider<E>> DefaultPacketBoundRegistry<E> getDefaultSingleton(FriendlyByteBufCodec<?> bufCodec) {
+    public static <E extends ICodecProvider<? super E>> DefaultPacketBoundRegistry<E> getDefaultSingleton(FriendlyByteBufCodec<?> bufCodec) {
         return (DefaultPacketBoundRegistry<E>) DEFAULT_SINGLETONS.get(bufCodec);
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends ICodecProvider<E>> DefaultPacketBoundRegistry<E> getDefaultSingletonByPath(String path) {
+    public static <E extends ICodecProvider<? super E>> DefaultPacketBoundRegistry<E> getDefaultSingletonByPath(String path) {
         return (DefaultPacketBoundRegistry<E>) DEFAULT_SINGLETONS_BY_PATH.get(path);
     }
 
@@ -64,23 +64,13 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
         @SuppressWarnings({"unchecked", "rawtypes"})
         public static void syncDefault(OnDatapackSyncEvent e) {
             ServerPlayer player = e.getPlayer();
-            if (player == null) {
-                DEFAULT_SINGLETONS.forEach((bufCodec, reg) -> {
-                    Connection.sendToAllPlayers(new DefaultRegistryBoundPacketPayload.Begin(reg.path));
-                    reg.registry.forEach((path, item) -> {
-                        Connection.sendToAllPlayers(new DefaultRegistryBoundPacketPayload(path, item, reg.path));
-                    });
-                    Connection.sendToAllPlayers(new DefaultRegistryBoundPacketPayload.End(reg.path));
+            DEFAULT_SINGLETONS.forEach((bufCodec, reg) -> {
+                Connection.sendToPlayerOrAll(player, DefaultRegistryBoundPacketPayload.begin(reg.path));
+                reg.registry.forEach((path, item) -> {
+                    Connection.sendToPlayerOrAll(player, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
                 });
-            } else {
-                DEFAULT_SINGLETONS.forEach((bufCodec, reg) -> {
-                    Connection.sendToPlayer(player, new DefaultRegistryBoundPacketPayload.Begin(reg.path));
-                    reg.registry.forEach((path, item) -> {
-                        Connection.sendToPlayer(player, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
-                    });
-                    Connection.sendToPlayer(player, new DefaultRegistryBoundPacketPayload.End(reg.path));
-                });
-            }
+                Connection.sendToPlayerOrAll(player, DefaultRegistryBoundPacketPayload.end(reg.path));
+            });
         }
     }
 

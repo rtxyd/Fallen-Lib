@@ -10,7 +10,7 @@ import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.MiscUtil;
 import org.jetbrains.annotations.NotNull;
 
-public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> extends AbstractRegistryBoundPacketPayload<E> {
+public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<? super E>> extends AbstractRegistryBoundPacketPayload<E> {
 
     public static final String version = "1.0";
     @SuppressWarnings("rawtypes")
@@ -43,8 +43,25 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         }
     };
 
+    public static IVanillaLikeCustomPacketPayload begin(String path) {
+        return new Begin(path);
+    }
+
+    public static<E extends ICodecProvider<? super E>> DefaultRegistryBoundPacketPayload<E> of(ResourceLocation id, E item, String regPah) {
+        return new DefaultRegistryBoundPacketPayload<>(id, item, regPah);
+    }
+
+    public static IVanillaLikeCustomPacketPayload end(String path) {
+        return new End(path);
+    }
+
     public String getRegPath() {
         return regPath;
+    }
+
+    @Override
+    public Type<?> getProcessType() {
+        return TYPE;
     }
 
     @Override
@@ -61,7 +78,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
             FallenLib.LOGGER.error("Registry singleton for loading [{}] is not registered! Skipped.", getPath());
             return;
         }
-        registry.handleProcess(contextSupplier, getPath(), getItem());
+        registry.handleProcess(contextSupplier, getPath(), this.getItem());
     }
 
     public DefaultRegistryBoundPacketPayload(ResourceLocation path, E o, String regPath) {
@@ -69,7 +86,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         this.regPath = regPath;
     }
 
-    public static class Begin implements IBegin {
+    public static class Begin implements IVanillaLikeCustomPacketPayload {
         public static final Type<Begin> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_begin");
         private final String path;
         public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.Begin> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(Begin::getRegPath, Begin::new);
@@ -78,7 +95,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
             return path;
         }
 
-        public Begin(String path) {
+        private Begin(String path) {
             this.path = path;
         }
 
@@ -100,7 +117,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
         }
     }
 
-    public static class End implements IEnd {
+    public static class End implements IVanillaLikeCustomPacketPayload {
         public static final Type<End> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_end");
         private final String path;
 
@@ -110,7 +127,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<E>> exte
 
         public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.End> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(End::getRegPath, End::new);
 
-        public End(String path) {
+        private End(String path) {
             this.path = path;
         }
 

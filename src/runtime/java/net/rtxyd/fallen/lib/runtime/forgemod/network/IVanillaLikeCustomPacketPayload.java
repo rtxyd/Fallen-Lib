@@ -6,6 +6,8 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jetbrains.annotations.NotNull;
 
 public interface IVanillaLikeCustomPacketPayload extends CustomPacketPayload {
+    Type<?> getProcessType();
+
     CustomPacketPayload.@NotNull Type<? extends CustomPacketPayload> type();
 
     void handle(IPayloadContext contextSupplier);

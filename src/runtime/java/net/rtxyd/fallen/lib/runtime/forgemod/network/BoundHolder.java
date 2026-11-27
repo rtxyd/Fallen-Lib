@@ -7,7 +7,7 @@ import net.rtxyd.fallen.lib.runtime.forgemod.util.IHolderOwner;
 
 import java.util.Objects;
 
-public class BoundHolder<T extends ICodecProvider<T>> implements IHolder<ResourceLocation, T> {
+public class BoundHolder<T extends ICodecProvider<? super T>> implements IHolder<ResourceLocation, T> {
 
     public static final ResourceLocation EMPTY = ResourceLocation.fromNamespaceAndPath("null", "null");
     private final ResourceLocation id;

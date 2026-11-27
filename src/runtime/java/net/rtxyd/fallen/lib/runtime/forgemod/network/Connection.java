@@ -11,6 +11,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -70,8 +72,16 @@ public class Connection {
         });
     }
 
-    public static <MSG extends CustomPacketPayload> void sendToPlayer(ServerPlayer player, MSG data) {
+    public static <MSG extends CustomPacketPayload> void sendToPlayer(@NotNull ServerPlayer player, MSG data) {
         player.connection.send(data);
+    }
+
+    public static <MSG extends CustomPacketPayload> void sendToPlayerOrAll(@Nullable ServerPlayer player, MSG data) {
+        if (Objects.isNull(player)) {
+            sendToAllPlayers(data);
+        } else {
+            player.connection.send(data);
+        }
     }
 
     public static <MSG extends CustomPacketPayload> void sendToAllPlayers(MSG data) {

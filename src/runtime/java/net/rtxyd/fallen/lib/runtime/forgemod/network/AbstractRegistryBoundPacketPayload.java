@@ -15,11 +15,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvider<E>> implements IVanillaLikeCustomPacketPayload {
+public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvider<? super E>> implements IVanillaLikeCustomPacketPayload {
     private final ResourceLocation path;
     private final E registryItem;
     @SuppressWarnings("rawtypes")
-    private static final Map<Type<? extends AbstractRegistryBoundPacketPayload>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
+    private static final Map<Type<? extends IVanillaLikeCustomPacketPayload>, AbstractPacketBoundRegistry> REGISTRY_SINGLETONS = new HashMap<>();
 
     protected AbstractRegistryBoundPacketPayload(ResourceLocation path, E registryItem) {
         this.path = path;
@@ -44,23 +44,21 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
 
     @SuppressWarnings("unchecked")
     public void handle(IPayloadContext contextSupplier) {
-        ((AbstractPacketBoundRegistry<E, ?, ?, ?>)getBoundRegistry(this.type())).handleProcess(contextSupplier, this.getPath(), this.getItem());
+        ((AbstractPacketBoundRegistry<E>) getBoundRegistry(this.type())).handleProcess(contextSupplier, this.getPath(), this.getItem());
     }
-
-    static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    void boundRegistrySingleton(Type<? extends AbstractRegistryBoundPacketPayload<A>> packetType, AbstractPacketBoundRegistry<A, B, C ,D> instance) {
+    @SuppressWarnings("rawtypes")
+    static <A extends ICodecProvider<? super A>> void boundRegistrySingleton(Type<? extends IVanillaLikeCustomPacketPayload> packetType, AbstractPacketBoundRegistry<A> instance) {
         if (REGISTRY_SINGLETONS.putIfAbsent(packetType, instance) != null) {
             throw new UnsupportedOperationException("Payload " + packetType.id() + " is already bound to a registry singleton!");
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    AbstractPacketBoundRegistry<A, B, C, D> getBoundRegistry(Type<?> registryType) {
-        return (AbstractPacketBoundRegistry<A, B, C, D>) REGISTRY_SINGLETONS.get(registryType);
+    public static <A extends ICodecProvider<? super A>> AbstractPacketBoundRegistry<? super A> getBoundRegistry(Type<?> registryType) {
+        return (AbstractPacketBoundRegistry<? super A>) REGISTRY_SINGLETONS.get(registryType);
     }
 
-    public static <ORIGIN extends AbstractRegistryBoundPacketPayload<E>, E extends ICodecProvider<E>> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
+    public static <ORIGIN extends AbstractRegistryBoundPacketPayload<E>, E extends ICodecProvider<? super E>> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
             Logger logger,
             Codec<E> itemCodec,
             BiFunction<ResourceLocation, E , ORIGIN> constructor
@@ -88,23 +86,5 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
                 return constructor.apply(path, result);
             }
         };
-    }
-
-    public static interface IBegin extends IVanillaLikeCustomPacketPayload {
-        @NotNull Type<?> getProcessType();
-
-        @Override
-        default void handle(IPayloadContext contextSupplier) {
-            getBoundRegistry(getProcessType()).handleBegin(contextSupplier);
-        }
-    }
-
-    public static interface IEnd extends IVanillaLikeCustomPacketPayload {
-        @NotNull Type<?> getProcessType();
-
-        @Override
-        default void handle(IPayloadContext contextSupplier) {
-            getBoundRegistry(getProcessType()).handleEnd(contextSupplier);
-        }
     }
 }

@@ -1,4 +1,4 @@
-package net.rtxyd.fallen.lib.runtime.forgemod.network;
+/*package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
@@ -29,12 +29,4 @@ public interface ILazyPacketBoundRegistry<E> {
     void handleEnd(IPayloadContext contextSupplier);
 
     void applyTemp();
-
-    record Constructors3Special<REGISTRY_ITEM extends ICodecProvider<REGISTRY_ITEM>,
-            BEGIN extends LazyRegistryBoundPacketPayLoad.IBegin,
-            PROCESS extends LazyRegistryBoundPacketPayLoad<REGISTRY_ITEM>,
-            END extends LazyRegistryBoundPacketPayLoad.IEnd>(Supplier<BEGIN> beginConstructor,
-                                                             BiFunction<ResourceLocation, Supplier<REGISTRY_ITEM>, PROCESS> processConstructor,
-                                                             Supplier<END> endConstructor) {
-    }
-}
+}*/
