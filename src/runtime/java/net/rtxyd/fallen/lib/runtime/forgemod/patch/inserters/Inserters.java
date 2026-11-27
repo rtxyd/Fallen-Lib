@@ -2,6 +2,7 @@ package net.rtxyd.fallen.lib.runtime.forgemod.patch.inserters;
 
 import dev.shadowsoffire.apotheosis.affix.Affix;
 import dev.shadowsoffire.apotheosis.affix.AffixInstance;
+import dev.shadowsoffire.apotheosis.affix.ItemAffixes;
 import dev.shadowsoffire.placebo.reload.DynamicHolder;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.NeoForge;
@@ -17,12 +18,12 @@ import java.util.HashMap;
 
 public class Inserters {
     @FallenInserter(value = InserterType.BEFORE_MODIFY_ARG, params = @Params(catchOuterArgs = {0}, modifyArg = 2))
-    @Notes(argTypes = {ItemStack.class, DynamicHolder.class, AffixInstance.class}, receiverType = HashMap.class, retType = {})
+    @Notes(argTypes = {ItemStack.class, DynamicHolder.class, AffixInstance.class}, receiverType = ItemAffixes.Builder.class, retType = {})
     // 0 is item, 2 is affix instance
-    // Map.put(DynamicHolder<? extends Affix>, AffixInstance)
-    // java/util/HashMap.put (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-    public static AffixInstance hookAffixApply(IInserterContext<HashMap<DynamicHolder<? extends Affix>, AffixInstance>, INull> ctx, Object... args) {
-        AffixApplyEvent event = new AffixApplyEvent((ItemStack) args[0], (AffixInstance) args[2]);
+    // ItemAffixes.Builder.put(DynamicHolder<? extends Affix>, AffixInstance)
+    // dev/shadowsoffire/apotheosis/affix/ItemAffixes$Builder.put (Ldev/shadowsoffire/placebo/reload/DynamicHolder;F)Ldev/shadowsoffire/apotheosis/affix/ItemAffixes$Builder;
+    public static AffixInstance hookAffixApply(IInserterContext<ItemAffixes.Builder, INull> ctx, Object... args) {
+        AffixApplyEvent event = new AffixApplyEvent((ItemStack) args[0], (AffixInstance) args[2], ctx.receiver());
         NeoForge.EVENT_BUS.post(event);
         return event.getAffix();
     }
