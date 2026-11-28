@@ -14,13 +14,14 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
 public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<? super E>> extends AbstractPacketBoundRegistry<E> {
     protected FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<E>> defaultBufCodec;
     private static final Map<String, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS_BY_PATH = new HashMap<>();
-    private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new HashMap<>();
+    private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new LinkedHashMap<>();
 
     private DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(logger, path, type, locFilter, doSync, useTypeIdAsKey);

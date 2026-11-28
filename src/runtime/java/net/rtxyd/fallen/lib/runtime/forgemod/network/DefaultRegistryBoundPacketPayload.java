@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 
 public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<? super E>> extends AbstractRegistryBoundPacketPayload<E> {
 
-    public static final String version = "1.0";
+    public static final String VERSION = "1.0";
     @SuppressWarnings("rawtypes")
     public static final Type<DefaultRegistryBoundPacketPayload> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_cl");
     private final String regPath;
