@@ -18,19 +18,19 @@ import java.util.*;
 
 @EventBusSubscriber
 public class Connection {
-    private static final Set<IPayloadRegisterHelper> REGISTERED = new LinkedHashSet<>();
+    private static final Set<IRegistryPayloadHelper> REGISTERED = new LinkedHashSet<>();
     public static final String VERSION = "1.0";
 
-    public static void register(IPayloadRegisterHelper helper) {
+    public static void register(IRegistryPayloadHelper helper) {
         REGISTERED.add(helper);
     }
 
     @SubscribeEvent
     static void registerAll(RegisterPayloadHandlersEvent event) {
         registerInternal();
-        List<IPayloadRegisterHelper> sorted = REGISTERED.stream().sorted(Comparator.comparing(IPayloadRegisterHelper::getSortPriority).reversed()).toList();
+        List<IRegistryPayloadHelper> sorted = REGISTERED.stream().sorted(Comparator.comparing(IRegistryPayloadHelper::getSortPriority).reversed()).toList();
 
-        for (IPayloadRegisterHelper helper : sorted) {
+        for (IRegistryPayloadHelper helper : sorted) {
             helper.register();
             helper.initSingleton();
         }

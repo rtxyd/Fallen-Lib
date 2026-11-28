@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
@@ -54,8 +55,8 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<? super A>> AbstractPacketBoundRegistry<? super A> getBoundRegistry(Type<?> registryType) {
-        return (AbstractPacketBoundRegistry<? super A>) REGISTRY_SINGLETONS.get(registryType);
+    public static AbstractPacketBoundRegistry<?> getBoundRegistry(Type<?> registryType) {
+        return REGISTRY_SINGLETONS.get(registryType);
     }
 
     public static <ORIGIN extends AbstractRegistryBoundPacketPayload<E>, E extends ICodecProvider<? super E>> FriendlyByteBufCodec<ORIGIN> createByteBufCodec(
@@ -86,5 +87,56 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
                 return constructor.apply(path, result);
             }
         };
+    }
+
+    public static class SimpleBegin implements IVanillaLikeCustomPacketPayload {
+        private final CustomPacketPayload.Type<?> processType;
+        private final CustomPacketPayload.Type<? super SimpleBegin> type;
+
+        public SimpleBegin(Type<? super SimpleBegin> type, Type<?> processType) {
+            this.type = type;
+            this.processType = processType;
+        }
+
+        @Override
+        public Type<?> getProcessType() {
+            return processType;
+        }
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return type;
+        }
+
+        @Override
+        public void handle(IPayloadContext contextSupplier) {
+            AbstractPacketBoundRegistry<?> reg = AbstractRegistryBoundPacketPayload.getBoundRegistry(processType);
+            reg.handleBegin(contextSupplier);
+        }
+    }
+    public static class SimpleEnd implements IVanillaLikeCustomPacketPayload {
+        private final CustomPacketPayload.Type<?> processType;
+        private final CustomPacketPayload.Type<? super SimpleEnd> type;
+
+        public SimpleEnd(Type<? super SimpleEnd> type, Type<?> processType) {
+            this.type = type;
+            this.processType = processType;
+        }
+
+        @Override
+        public Type<?> getProcessType() {
+            return processType;
+        }
+
+        @Override
+        public @NotNull Type<? extends CustomPacketPayload> type() {
+            return type;
+        }
+
+        @Override
+        public void handle(IPayloadContext contextSupplier) {
+            AbstractPacketBoundRegistry<?> reg = AbstractRegistryBoundPacketPayload.getBoundRegistry(processType);
+            reg.handleEnd(contextSupplier);
+        }
     }
 }

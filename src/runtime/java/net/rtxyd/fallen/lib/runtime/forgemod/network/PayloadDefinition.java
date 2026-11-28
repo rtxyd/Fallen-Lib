@@ -1,11 +1,13 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadHandler;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 
-public record PayloadDefinition<T extends CustomPacketPayload>(
+public record PayloadDefinition<T extends IVanillaLikeCustomPacketPayload> (
         CustomPacketPayload.Type<T> type,
-        FriendlyByteBufCodec<T> codec,
-        IPayloadHandler<T> handler
-) {}
+        StreamCodec<? super RegistryFriendlyByteBuf, T> codec,
+        IVanillaLikePayloadHandler<T> handler
+) {
+}

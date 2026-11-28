@@ -8,11 +8,12 @@ import org.jetbrains.annotations.NotNull;
 public interface IVanillaLikeCustomPacketPayload extends CustomPacketPayload {
     Type<?> getProcessType();
 
-    CustomPacketPayload.@NotNull Type<? extends CustomPacketPayload> type();
-
     void handle(IPayloadContext contextSupplier);
 
     static <T extends CustomPacketPayload> CustomPacketPayload.@NotNull Type<T> createType(String namespace, String path) {
-        return new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(namespace, path));
+        return createType(ResourceLocation.fromNamespaceAndPath(namespace, path));
+    }
+    static <T extends CustomPacketPayload> CustomPacketPayload.@NotNull Type<T> createType(ResourceLocation id) {
+        return new CustomPacketPayload.Type<>(id);
     }
 }
