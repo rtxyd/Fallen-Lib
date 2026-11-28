@@ -47,7 +47,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<? super 
         return new Begin(path);
     }
 
-    public static<E extends ICodecProvider<? super E>> DefaultRegistryBoundPacketPayload<E> of(ResourceLocation id, E item, String regPah) {
+    public static <E extends ICodecProvider<? super E>> DefaultRegistryBoundPacketPayload<E> of(ResourceLocation id, E item, String regPah) {
         return new DefaultRegistryBoundPacketPayload<>(id, item, regPah);
     }
 
@@ -81,12 +81,12 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<? super 
         registry.handleProcess(contextSupplier, getPath(), this.getItem());
     }
 
-    public DefaultRegistryBoundPacketPayload(ResourceLocation path, E o, String regPath) {
+    DefaultRegistryBoundPacketPayload(ResourceLocation path, E o, String regPath) {
         super(path, o);
         this.regPath = regPath;
     }
 
-    public static class Begin implements IVanillaLikeCustomPacketPayload {
+    static class Begin implements IVanillaLikeCustomPacketPayload {
         public static final Type<Begin> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_begin");
         private final String path;
         public static final FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload.Begin> DEFAULT_BUF_CODEC = MiscUtil.createSingleStringBufCodec(Begin::getRegPath, Begin::new);
@@ -117,7 +117,7 @@ public class DefaultRegistryBoundPacketPayload<E extends ICodecProvider<? super 
         }
     }
 
-    public static class End implements IVanillaLikeCustomPacketPayload {
+    static class End implements IVanillaLikeCustomPacketPayload {
         public static final Type<End> TYPE = IVanillaLikeCustomPacketPayload.createType(FallenLib.MODID, "default_end");
         private final String path;
 

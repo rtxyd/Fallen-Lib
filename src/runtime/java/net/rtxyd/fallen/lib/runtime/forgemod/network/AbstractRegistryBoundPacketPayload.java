@@ -89,7 +89,7 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
         };
     }
 
-    public static class SimpleBegin implements IVanillaLikeCustomPacketPayload {
+    static class SimpleBegin implements IVanillaLikeCustomPacketPayload {
         private final CustomPacketPayload.Type<?> processType;
         private final CustomPacketPayload.Type<? super SimpleBegin> type;
 
@@ -114,7 +114,7 @@ public abstract class AbstractRegistryBoundPacketPayload<E extends ICodecProvide
             reg.handleBegin(contextSupplier);
         }
     }
-    public static class SimpleEnd implements IVanillaLikeCustomPacketPayload {
+    static class SimpleEnd implements IVanillaLikeCustomPacketPayload {
         private final CustomPacketPayload.Type<?> processType;
         private final CustomPacketPayload.Type<? super SimpleEnd> type;
 

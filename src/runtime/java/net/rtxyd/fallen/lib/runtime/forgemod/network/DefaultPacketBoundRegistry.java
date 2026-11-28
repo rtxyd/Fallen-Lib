@@ -23,7 +23,7 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<? supe
     private static final Map<String, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS_BY_PATH = new HashMap<>();
     private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new LinkedHashMap<>();
 
-    private DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
+    public DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(logger, path, type, locFilter, doSync, useTypeIdAsKey);
         this.initSingletonBoundCodec();
         this.defaultBufCodec = createDefaultByteBufCodec(logger, DefaultRegistryBoundPacketPayload::new);
