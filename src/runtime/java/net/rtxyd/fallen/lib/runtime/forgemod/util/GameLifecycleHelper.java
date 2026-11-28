@@ -5,28 +5,26 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerContainerEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
-import net.rtxyd.fallen.lib.runtime.forgemod.addon.minecraft.SlotOnTakeEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKey;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.eventkey.EventKeys;
-import net.rtxyd.fallen.lib.util.call.ContextKey;
 import net.rtxyd.fallen.lib.util.call.ContextKeyRegistry;
 
 import java.util.*;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-@Mod.EventBusSubscriber
+@EventBusSubscriber
 public class GameLifecycleHelper {
     public static IClientPlayerSupplier pSupplier = () -> null;
     static IClientThreadSupplier tSupplier = () -> null;
@@ -59,36 +57,6 @@ public class GameLifecycleHelper {
 
     public static Set<Player> getContainerActivePlayers(Container menu) {
         return CONTAINER_PLAYER_MAP.get(menu);
-    }
-
-    /* this is a backward compatible layer for version 1.4.4 and before */
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> ContextKey<T> registerContextKey(String id) {
-        return registerCallKey(id);
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> ContextKey<T> getContextKey(String id) {
-        return getCallKey(id);
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> void submitContextCall(ContextKey<T> key, Callable<T> call) {
-        if (key instanceof CallKey<T> callKey) {
-            submitContextCall(callKey, call);
-        }
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> T callIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
-        if (key instanceof CallKey<T> callKey) {
-            return callIfSameTick(callKey, handleEx);
-        }
-        return null;
-    }
-    @Deprecated(forRemoval = true, since = "1.5.0")
-    public static <T> T callAndRemoveIfPresent(ContextKey<T> key, Consumer<Exception> handleEx) {
-        if (key instanceof CallKey<T> callKey) {
-            return callAndRemoveIfSameTick(callKey, handleEx);
-        }
-        return null;
     }
 
     public static <T> void submitContextCall(CallKey<T> key, Callable<T> call) {
@@ -176,14 +144,11 @@ public class GameLifecycleHelper {
     }
 
     public static Optional<Level> safeGetClientLevel() {
-        final AtomicReference<Player> localPlayer = new AtomicReference<>();
-        DistExecutor.unsafeRunWhenOn(
-                Dist.CLIENT, () -> () -> {
-                    localPlayer.setPlain(pSupplier.player());
-                });
-
-        if (localPlayer.getPlain() != null) {
-            return Optional.of(localPlayer.getPlain().level());
+        if (FMLLoader.getDist() == Dist.CLIENT) {
+            Player player = pSupplier.player();
+            if (player != null) {
+                return Optional.of(player.level());
+            }
         }
         return Optional.empty();
     }
@@ -200,21 +165,17 @@ public class GameLifecycleHelper {
         serverCycleTickCount = 0;
     }
     @SubscribeEvent
-    static void onServerTickStart(TickEvent.ServerTickEvent e) {
-        if (e.phase == TickEvent.Phase.START) {
-            ++serverCycleTickCount;
-        }
+    static void onServerTickStart(ServerTickEvent.Pre e) {
+        ++serverCycleTickCount;
     }
     @SubscribeEvent
-    static void onClientTickStart(TickEvent.ClientTickEvent e) {
-        if (e.phase == TickEvent.Phase.START) {
-            clientCycleTickCount++;
-        }
+    static void onClientTickStart(ClientTickEvent.Pre e) {
+        clientCycleTickCount++;
     }
     @SubscribeEvent
     static void onServerStopped(ServerStoppedEvent e) {
         CALL_BOX.clear();
-        EventKeys.clearAll();
+        CALL_BOX.setThread(0, null);
         CONTAINER_PLAYER_MAP.clear();
         PLAYER_MENU_SNAPSHOT.clear();
         CTX_KEY_REG.forEachContextKey(c -> {
@@ -236,28 +197,22 @@ public class GameLifecycleHelper {
         CONTAINER_PLAYER_MAP.entrySet().removeIf(e -> e.getValue().isEmpty());
     }
     @SubscribeEvent
-    static void onSlotTake(SlotOnTakeEvent e) {
-        EventKeys.SLOT_ON_TAKE.fire(e.getSlot(), e.getPlayer(), e.getStack());
-    }
-    @SubscribeEvent
-    static void onPlayerTick(TickEvent.PlayerTickEvent e) {
-        Player p = e.player;
+    static void onPlayerTick(PlayerTickEvent.Post e) {
+        Player p = e.getEntity();
         if (p.level().isClientSide) return;
 //        if (p.tickCount % 3 != 0) return;
-        if (e.phase == TickEvent.Phase.END) {
-            AbstractContainerMenu menu = PLAYER_MENU_SNAPSHOT.get(p);
-            if (menu == null) return;
-            if (p.containerMenu == menu) {
-                return;
+        AbstractContainerMenu menu = PLAYER_MENU_SNAPSHOT.get(p);
+        if (menu == null) return;
+        if (p.containerMenu == menu) {
+            return;
+        } else {
+            if (p.containerMenu == p.inventoryMenu) {
+                updateContainerMap(menu, p);
             } else {
-                if (p.containerMenu == p.inventoryMenu) {
+                if (p.containerMenu != null && p.containerMenu.stillValid(p)) {
+                    PLAYER_MENU_SNAPSHOT.put(p, p.containerMenu);
+                    storeContainerMap(p);
                     updateContainerMap(menu, p);
-                } else {
-                    if (p.containerMenu != null && p.containerMenu.stillValid(p)) {
-                        PLAYER_MENU_SNAPSHOT.put(p, p.containerMenu);
-                        storeContainerMap(p);
-                        updateContainerMap(menu, p);
-                    }
                 }
             }
         }
@@ -311,7 +266,6 @@ public class GameLifecycleHelper {
                 pSet.remove(p);
                 if (pSet.isEmpty()) {
                     CONTAINER_PLAYER_MAP.remove(last);
-                    EventKeys.SLOT_ON_TAKE.cleanup(last);
                 }
             }
         }

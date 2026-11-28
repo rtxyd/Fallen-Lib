@@ -1,6 +1,6 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.patch;
 
-import dev.shadowsoffire.apotheosis.adventure.affix.AffixHelper;
+import dev.shadowsoffire.apotheosis.affix.AffixHelper;
 import net.rtxyd.fallen.lib.api.IFallenPatch;
 import net.rtxyd.fallen.lib.api.annotation.FallenPatch;
 import net.rtxyd.fallen.lib.api.annotation.Targets;
@@ -41,7 +41,7 @@ public class PatchAffixHelper implements IFallenPatch{
             InsnList insns = method.instructions;
             // we must ensure the record class is clean, or it could be risky when we create instance.
             if (insns == null) continue;
-            if (!(method.name.equals("applyAffix") && method.desc.equals("(Lnet/minecraft/world/item/ItemStack;Ldev/shadowsoffire/apotheosis/adventure/affix/AffixInstance;)V"))) continue;
+            if (!(method.name.equals("applyAffix") && method.desc.equals("(Ldev/shadowsoffire/placebo/reload/DynamicHolder;F)Ldev/shadowsoffire/apotheosis/affix/ItemAffixes$Builder"))) continue;
             // only patches like Map.get(key), or Map.getOrDefault(key),
             // and there are other cases, but will be strictly filtered.
             PatchUtil.insertMethodHook(cn,
@@ -49,7 +49,7 @@ public class PatchAffixHelper implements IFallenPatch{
                     m ->
                             m.getOpcode() == Opcodes.INVOKEVIRTUAL
                             && m instanceof MethodInsnNode mn
-                            && mn.owner.endsWith("Map")
+                            && mn.owner.endsWith("ItemAffixes$Builder")
                             && mn.name.equals("put"),
                     hookData);
         }

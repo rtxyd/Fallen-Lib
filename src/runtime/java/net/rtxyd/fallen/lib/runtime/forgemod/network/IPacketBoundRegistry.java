@@ -1,38 +1,35 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.network;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.network.NetworkEvent;
-import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.BiFunction;
-import java.util.function.Supplier;
+public interface IPacketBoundRegistry<I> {
 
-public interface IPacketBoundRegistry<REGISTRY_ITEM> {
+    void beginReload(ReloadType type);
 
-    void beginReload();
-
-    void onReload();
+    void onReload(ReloadType server);
 
     // serverside
     void syncClient(OnDatapackSyncEvent e);
 
     void beginSync();
 
-    void registerTempEntry(ResourceLocation loc, REGISTRY_ITEM extraGemBonus);
+    void registerTempEntry(ResourceLocation loc, I extraGemBonus);
 
-    void validateItem(ResourceLocation loc, REGISTRY_ITEM item);
+    void validateItem(ResourceLocation loc, I item);
 
-    void handleBegin(Supplier<NetworkEvent.Context> contextSupplier);
+    void handleBegin(IPayloadContext contextSupplier);
 
-    void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, REGISTRY_ITEM item);
+    void handleProcess(IPayloadContext contextSupplier, ResourceLocation path, I item);
 
-    void handleEnd(Supplier<NetworkEvent.Context> contextSupplier);
+    void handleEnd(IPayloadContext contextSupplier);
 
     void applyTemp();
 
-    public static record Constructors3<REGISTRY_ITEM extends ICodecProvider<REGISTRY_ITEM>,
-    BEGIN extends AbstractRegistryBoundPacketPayload.IBegin,
-    PROCESS extends AbstractRegistryBoundPacketPayload<REGISTRY_ITEM>,
-    END extends AbstractRegistryBoundPacketPayload.IEnd>(Supplier<BEGIN> beginConstructor, BiFunction<ResourceLocation, REGISTRY_ITEM, PROCESS> processConstructor, Supplier<END> endConstructor) {}
+    enum ReloadType {
+        SERVER,
+        INTEGRATED_CLIENT,
+        DEDICATED_CLIENT;
+    }
 }

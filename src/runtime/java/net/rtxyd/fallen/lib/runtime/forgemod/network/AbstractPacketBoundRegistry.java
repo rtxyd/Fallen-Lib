@@ -10,20 +10,21 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.conditions.ConditionalOps;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.IHolderOwner;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.Serialization;
@@ -33,12 +34,8 @@ import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
-public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
-        PB extends AbstractRegistryBoundPacketPayload.IBegin,
-        P extends AbstractRegistryBoundPacketPayload<E>,
-        PE extends AbstractRegistryBoundPacketPayload.IEnd>
+public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<? super E>>
         extends SimpleJsonResourceReloadListener implements IPacketBoundRegistry<E>, ICodecProvider<E>, IHolderOwner<ResourceLocation, E> {
 
     protected final String path;
@@ -59,9 +56,10 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     protected final Map<ResourceLocation, E> temp = new HashMap<>();
 
-    Constructors3<E, PB, P, PE> packetConstructors;
+    IRegistrySyncHandler<E> packetHandler;
     private Codec<E> singletonBoundCodec;
-    private Codec<BoundHolder<E>> holderCodec;
+    private final Codec<BoundHolder<E>> holderCodec;
+    private final StreamCodec<ByteBuf, BoundHolder<E>> holderStreamCodec;
 
     public AbstractPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(new Gson(), path);
@@ -74,19 +72,18 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         this.initSingletonBoundCodec();
         this.registerBuiltinCodecs();
         this.holderCodec = ResourceLocation.CODEC.xmap(this::holder, BoundHolder::getId);
+        this.holderStreamCodec = ResourceLocation.STREAM_CODEC.map(this::holder, BoundHolder::getId);
     }
 
-    final void initPacketsConstructors(Constructors3<E, PB, P, PE> constructors) {
-        if (this.packetConstructors == null) {
-            this.validateConstructors(constructors);
-            this.packetConstructors = constructors;
+    final void initPacketsHandler(IRegistrySyncHandler<E> constructors) {
+        if (this.packetHandler == null) {
+            this.validateHandler(constructors);
+            this.packetHandler = constructors;
         }
     }
 
-    private final void validateConstructors(Constructors3<E, PB, P, PE> constructors) {
-        if (!(constructors.beginConstructor() != null && constructors.processConstructor() != null && constructors.endConstructor() != null)) {
-            throw new RuntimeException("Registry[" + this.getClass() + "]: Invalid packet constructors!");
-        }
+    private final void validateHandler(IRegistrySyncHandler<E> constructors) {
+        Objects.requireNonNull(constructors, "Registry[" + this.getClass() + "]: Invalid packet constructors!");
     }
 
     public final void onAddReloadListeners(AddReloadListenerEvent event) {
@@ -96,11 +93,11 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     final void registerCommon() {
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOW, this::onAddReloadListeners);
     }
 
     final void registerSync(EventPriority priority) {
-        MinecraftForge.EVENT_BUS.addListener(priority, this::syncClient);
+        NeoForge.EVENT_BUS.addListener(priority, this::syncClient);
     }
 
     @Override
@@ -110,24 +107,20 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
         if (!this.validate()) {
             return;
         }
-        this.beginReload();
-        Codec<E> codec = this.singletonBoundCodec;
-        if (codec == null) {
-            logger.error("Codec is null or not registered in {}", path);
-            return;
-        }
+        this.beginReload(ReloadType.SERVER);
+        Codec<E> codec = Objects.requireNonNull(this.singletonBoundCodec, "Codec is null or not registered in " + path);
+        ConditionalOps<JsonElement> ops = this.makeConditionalOps();
         map.forEach((key, ele) -> {
             if (!locFilter.test(key)) return;
             try {
-                JsonObject obj;
                 if (Serialization.isNotNullOrIsJsonObj(ele, key, this.path, this.logger)) {
-                    obj = ele.getAsJsonObject();
-                    if (Serialization.checkEmptyJsonObjAndLog(obj, key, this.path, this.logger) && Serialization.checkConditions(obj, key, this.path, this.logger, this.context)) {
-                        E deserialized = codec.decode(JsonOps.INSTANCE, obj).getOrThrow(false, s -> {}).getFirst();
+                    JsonObject obj = ele.getAsJsonObject();
+                    if (Serialization.checkEmptyJsonObjAndLog(obj, key, this.path, this.logger) && Serialization.checkConditions(obj, key, this.path, this.logger, ops)) {
+                        E deserialized = codec.decode(ops, obj).getOrThrow().getFirst();
                         if (useTypeIdAsKey) {
-                            Optional<JsonElement> id = JsonOps.INSTANCE.get(obj, type).resultOrPartial(str -> {});
-                            Optional<ResourceLocation> keyTypeId = id.map(t -> ResourceLocation.CODEC.decode(JsonOps.INSTANCE, t).resultOrPartial(logger::error).get().getFirst());
-                            this.register(keyTypeId.get(), deserialized);
+                            JsonElement id = ops.get(obj, type).getOrThrow();
+                            ResourceLocation keyTypeId = ResourceLocation.CODEC.decode(ops, id).getOrThrow().getFirst();
+                            this.register(keyTypeId, deserialized);
                         } else {
                             this.register(key, deserialized);
                         }
@@ -138,7 +131,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
                 logger.error("Underlying Exception: ", e);
             }
         });
-        this.onReload();
+        this.onReload(ReloadType.SERVER);
     }
 
     private final void register(ResourceLocation loc, E item) {
@@ -149,7 +142,7 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     public boolean validate() {
-        if (this.packetConstructors == null && this.doSync) {
+        if (this.packetHandler == null && this.doSync) {
             throw new UnsupportedOperationException("Registry [" + this.getClass() +  "] is intended to do sync, but bound constructors are not initialized!");
         }
         if (!SINGLETONS.containsKey(this.getClass())) {
@@ -162,9 +155,9 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends ICodecProvider<A>, B extends AbstractRegistryBoundPacketPayload.IBegin, C extends AbstractRegistryBoundPacketPayload<A>, D extends AbstractRegistryBoundPacketPayload.IEnd>
-    AbstractPacketBoundRegistry<A, B, C, D> getSingleton(Class<? extends AbstractPacketBoundRegistry<A, B, C, D>> registryClass) {
-        return (AbstractPacketBoundRegistry<A, B, C, D>) SINGLETONS.get(registryClass);
+    public static <A extends ICodecProvider<? super A>>
+    AbstractPacketBoundRegistry<A> getSingleton(Class<? extends AbstractPacketBoundRegistry<A>> registryClass) {
+        return (AbstractPacketBoundRegistry<A>) SINGLETONS.get(registryClass);
     }
 
     @SuppressWarnings("rawtypes")
@@ -201,8 +194,8 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
                     if (key == null) {
                         return DataResult.error(() -> "Codec is not registered! Obj:" + input);
                     }
-                    T resultKey = ResourceLocation.CODEC.encodeStart(ops, key).getOrThrow(false, logger::error);
-                    T resultObj = codec.encode(input, ops, prefix).getOrThrow(false, logger::error);
+                    T resultKey = ResourceLocation.CODEC.encodeStart(ops, key).getOrThrow();
+                    T resultObj = codec.encode(input, ops, prefix).getOrThrow();
                     return ops.mergeToMap(resultObj, ops.createString(type), resultKey);
                 }
             };
@@ -258,26 +251,33 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     // serverside
     @Override
     public final void syncClient(OnDatapackSyncEvent e) {
-        if (packetConstructors == null) {
+        if (packetHandler == null) {
             throw new UnsupportedOperationException("Registry[" + this.getClass() + "] packet constructors are not initialized!");
         }
         ServerPlayer player = e.getPlayer();
-        PacketDistributor.PacketTarget target = player == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(() -> player);
-        Connection.sendToTarget(target, packetConstructors.beginConstructor().get());
-        registry.forEach((path, item) -> {
-            Connection.sendToTarget(target, packetConstructors.processConstructor().apply(path, item));
-        });
-        Connection.sendToTarget(target, packetConstructors.endConstructor().get());
+        if (player == null) {
+            packetHandler.begin(null);
+            registry.forEach((path, item) -> {
+                packetHandler.process(null, path, item);
+            });
+            packetHandler.end(null);
+        } else {
+            packetHandler.begin(player);
+            registry.forEach((path, item) -> {
+                packetHandler.process(player, path, item);
+            });
+            packetHandler.end(player);
+        }
     }
 
     @Override
-    public void beginReload() {
+    public void beginReload(ReloadType type) {
         this.registry = HashBiMap.create();
         this.holders.values().forEach(BoundHolder::reset);
     }
 
     @Override
-    public void onReload() {
+    public void onReload(ReloadType type) {
         this.registry = ImmutableBiMap.copyOf(this.registry);
         this.holders.values().forEach(BoundHolder::bind);
     }
@@ -297,31 +297,48 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
     public void validateItem(ResourceLocation loc, E item) {}
 
     @Override
-    public final void handleBegin(Supplier<NetworkEvent.Context> contextSupplier) {
-        contextSupplier.get().enqueueWork(this::beginSync);
+    public final void handleBegin(IPayloadContext contextSupplier) {
+        contextSupplier.enqueueWork(this::beginSync);
     }
 
     @Override
-    public final void handleProcess(Supplier<NetworkEvent.Context> contextSupplier, ResourceLocation path, E item) {
-        contextSupplier.get().enqueueWork(() -> {
+    public final void handleProcess(IPayloadContext contextSupplier, ResourceLocation path, E item) {
+        contextSupplier.enqueueWork(() -> {
             this.registerTempEntry(path, item);
         });
     }
 
+    private void onDedicatedClient() {
+        normalEndProcess(ReloadType.DEDICATED_CLIENT);
+    }
+
+    private void onIntegratedClient() {
+        this.temp.clear();
+        this.temp.putAll(this.registry);
+        normalEndProcess(ReloadType.INTEGRATED_CLIENT);
+    }
+
+    private void normalEndProcess(ReloadType type) {
+        this.beginReload(type);
+        this.applyTemp();
+        this.onReload(type);
+    }
+
     @Override
-    public final void handleEnd(Supplier<NetworkEvent.Context> contextSupplier) {
-        if (ServerLifecycleHooks.getCurrentServer() != null) return;
-        contextSupplier.get().enqueueWork(() -> {
-            this.beginReload();
-            this.applyTemp();
-            this.onReload();
+    public final void handleEnd(IPayloadContext contextSupplier) {
+        contextSupplier.enqueueWork(() -> {
+            if (ServerLifecycleHooks.getCurrentServer() != null) {
+                onIntegratedClient();
+                return;
+            }
+            onDedicatedClient();
         });
     }
 
     @Override
-    public final void applyTemp() {
+    public void applyTemp() {
         temp.forEach((k,v)->{
-            registry.put(k,v);
+            registry.put(k, v);
             this.holders.computeIfAbsent(k, r -> new BoundHolder<>(r, this));
         });
     }
@@ -337,5 +354,9 @@ public abstract class AbstractPacketBoundRegistry<E extends ICodecProvider<E>,
 
     public final Codec<BoundHolder<E>> getHolderCodec() {
         return holderCodec;
+    }
+
+    public StreamCodec<ByteBuf, BoundHolder<E>> getHolderStreamCodec() {
+        return holderStreamCodec;
     }
 }

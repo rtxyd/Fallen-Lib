@@ -1,8 +1,8 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.addon.apotheosis.registry;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.event.IModBusEvent;
+import net.neoforged.bus.api.Event;
+import net.neoforged.fml.event.IModBusEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.FallenLib;
 import net.rtxyd.fallen.lib.util.IObjectCaky;
 

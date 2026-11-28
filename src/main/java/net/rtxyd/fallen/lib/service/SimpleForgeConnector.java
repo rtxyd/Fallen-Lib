@@ -1,10 +1,13 @@
 package net.rtxyd.fallen.lib.service;
 
 import com.google.common.collect.ImmutableMap;
-import net.minecraftforge.fml.loading.moddiscovery.*;
-import net.minecraftforge.forgespi.locating.IModFile;
-import net.minecraftforge.forgespi.locating.IModLocator;
-import net.minecraftforge.forgespi.locating.ModFileLoadingException;
+import cpw.mods.jarhandling.JarContents;
+import cpw.mods.jarhandling.JarMetadata;
+import cpw.mods.jarhandling.SecureJar;
+import net.neoforged.fml.loading.moddiscovery.ModFile;
+import net.neoforged.fml.loading.moddiscovery.ModJarMetadata;
+import net.neoforged.fml.loading.moddiscovery.readers.JarModsDotTomlModFileReader;
+import net.neoforged.neoforgespi.locating.*;
 import net.rtxyd.fallen.lib.FallenCoreLib;
 
 import java.net.URI;
@@ -13,14 +16,17 @@ import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.jar.Manifest;
 
 import static net.rtxyd.fallen.lib.service.FallenBootstrap.LOGGER;
 
-public class SimpleForgeConnector extends AbstractJarFileModProvider implements IModLocator {
+public class SimpleForgeConnector implements IDependencyLocator {
 
-    public Path getPath() {
+    Path getPath() {
         URL url = this.getClass().getClassLoader().getResource(FallenCoreLib.FORGE_MOD_LOC);
         if (url == null) {
             if (FallenBootstrap.isDevEnvironment) {
@@ -45,27 +51,29 @@ public class SimpleForgeConnector extends AbstractJarFileModProvider implements 
     }
 
     @Override
-    public String name() {
+    public String toString() {
         return "fallen_lib_mod_locator";
     }
 
     @Override
-    public void initArguments(Map<String, ?> arguments) {}
+    public void scanMods(List<IModFile> loadedMods, IDiscoveryPipeline pipeline) {
+        Optional<JarContents> result = scanModsInner();
+        result.ifPresent(jarContents -> pipeline.addJarContent(jarContents, ModFileDiscoveryAttributes.DEFAULT, IncompatibleFileReporting.ERROR));
+    }
 
-    @Override
-    @SuppressWarnings("resource")
     // forge way to adapt the union path.
-    public List<ModFileOrException> scanMods() {
+    @SuppressWarnings("resource")
+    private Optional<JarContents> scanModsInner() {
         Path pathInModFile = getPath();
-        if (pathInModFile == null) return List.of();
+        if (pathInModFile == null) return Optional.empty();
         try {
             final URI filePathUri = new URI("jij:" + (pathInModFile.toAbsolutePath().toUri().getRawSchemeSpecificPart())).normalize();
             final Map<String, ?> outerFsArgs = ImmutableMap.of("packagePath", pathInModFile);
             // we want to hold the file for a long time, so don't need to handle close.
             final FileSystem zipFS = FileSystems.newFileSystem(filePathUri, outerFsArgs);
             final Path pathInFS = zipFS.getPath("/");
-            final String modType = IModFile.Type.LIBRARY.name();
-            return List.of(createMod(modType, pathInFS));
+            var jar = JarContents.of(pathInFS);
+            return Optional.of(jar);
         } catch (Exception e) {
             LOGGER.error("Failed to load mod fallen lib runtime from fallen lib");
             final RuntimeException exception = new ModFileLoadingException("Failed to load fallen lib runtime");

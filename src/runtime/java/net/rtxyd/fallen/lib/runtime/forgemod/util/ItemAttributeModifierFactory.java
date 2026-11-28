@@ -1,63 +1,64 @@
 package net.rtxyd.fallen.lib.runtime.forgemod.util;
 
+import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraftforge.event.ItemAttributeModifierEvent;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ItemAttributeModifierFactory {
-    private final Map<Attribute, OperationValues<UUID>> ATTR_UUID_CACHE = new HashMap<>();
-    private final Map<Attribute, OperationValues<String>> ATTR_NAME_CACHE = new HashMap<>();
-    private final String prefixName;
-    public ItemAttributeModifierFactory(String prefixName) {
-        this.prefixName = prefixName;
+    private final Map<Holder<Attribute>, OperationValues<ResourceLocation>> ATTR_ID_CACHE = new HashMap<>();
+    private final Map<Holder<Attribute>, OperationValues<String>> ATTR_NAME_CACHE = new HashMap<>();
+    private final String nameSpace;
+    private final String pathPrefix;
+    public ItemAttributeModifierFactory(String nameSpace, String pathPrefix) {
+        this.nameSpace = nameSpace;
+        this.pathPrefix = pathPrefix;
     }
-    public record ItemModifierValues(Attribute attr, double addition, double multipliedBase, double multipliedTotal) {}
-    public record OperationValues<T>(T addition, T multipliedBase, T multipliedTotal) {}
+    public record ItemModifierValues(Holder<Attribute> attr, double addition, double multipliedBase, double multipliedTotal) {}
+    public record OperationValues<T>(T addValue, T addMultipliedBase, T addMultipliedTotal) {}
 
     public List<ItemModifierValues> computeModifierValues(ItemAttributeModifierEvent event) {
         var multiModifiers = event.getModifiers();
         List<ItemModifierValues> list = new ArrayList<>();
-        for (Map.Entry<Attribute, Collection<AttributeModifier>> en : multiModifiers.asMap().entrySet()) {
-            double addition = 0;
-            double multipliedBase = 0;
-            double multipliedTotal = 0;
-            Collection<AttributeModifier> v = en.getValue();
-            for (AttributeModifier modifier : v) {
-                switch (modifier.getOperation()) {
-                    case ADDITION -> {
-                        addition += modifier.getAmount();
-                    }
-                    case MULTIPLY_BASE -> {
-                        multipliedBase += modifier.getAmount();
-                    }
-                    case MULTIPLY_TOTAL -> {
-                        multipliedTotal += modifier.getAmount();
-                    }
+        double addition = 0;
+        double multipliedBase = 0;
+        double multipliedTotal = 0;
+        for (ItemAttributeModifiers.Entry en : multiModifiers) {
+            AttributeModifier v = en.modifier();
+            switch (v.operation()) {
+                case ADD_VALUE -> {
+                    addition += v.amount();
+                }
+                case ADD_MULTIPLIED_BASE -> {
+                    multipliedBase += v.amount();
+                }
+                case ADD_MULTIPLIED_TOTAL -> {
+                    multipliedTotal += v.amount();
                 }
             }
-            list.add(new ItemModifierValues(en.getKey(), addition, multipliedBase, multipliedTotal));
+            list.add(new ItemModifierValues(en.attribute(), addition, multipliedBase, multipliedTotal));
         }
         return list;
     }
-    public OperationValues<UUID> getGlobalUUIDs(Attribute attr) {
-        return ATTR_UUID_CACHE.computeIfAbsent(attr, v -> {
+    public OperationValues<ResourceLocation> getGlobalIDs(Holder<Attribute> attr) {
+        return ATTR_ID_CACHE.computeIfAbsent(attr, v -> {
             OperationValues<String> names = getAttrNames(attr);
             return new OperationValues<>(
-                    UUID.nameUUIDFromBytes(names.addition.getBytes(StandardCharsets.UTF_8)),
-                    UUID.nameUUIDFromBytes(names.multipliedBase.getBytes(StandardCharsets.UTF_8)),
-                    UUID.nameUUIDFromBytes(names.multipliedTotal.getBytes(StandardCharsets.UTF_8))
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addValue),
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addMultipliedBase),
+                    ResourceLocation.fromNamespaceAndPath(nameSpace, names.addMultipliedTotal)
             );
         });
     }
-    public OperationValues<String> getAttrNames(Attribute attr) {
+    public OperationValues<String> getAttrNames(Holder<Attribute> attr) {
         return ATTR_NAME_CACHE.computeIfAbsent(attr, a -> new OperationValues<>(
-                prefixName + "[" + ForgeRegistries.ATTRIBUTES.getKey(attr) + 0 + "]",
-                prefixName + "[" + ForgeRegistries.ATTRIBUTES.getKey(attr) + 1 + "]",
-                prefixName + "[" + ForgeRegistries.ATTRIBUTES.getKey(attr) + 2 + "]")
+                pathPrefix + "[" + attr.getKey() + 0 + "]",
+                pathPrefix + "[" + attr.getKey() + 1 + "]",
+                pathPrefix + "[" + attr.getKey() + 2 + "]")
         );
     }
 }

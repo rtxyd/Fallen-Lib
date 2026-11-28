@@ -5,9 +5,8 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.OnDatapackSyncEvent;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.FriendlyByteBufCodec;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.ICodecProvider;
 import net.rtxyd.fallen.lib.runtime.forgemod.util.TriFunction;
@@ -15,13 +14,14 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 
-public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> extends AbstractPacketBoundRegistry<E, DefaultRegistryBoundPacketPayload.Begin, DefaultRegistryBoundPacketPayload<E>, DefaultRegistryBoundPacketPayload.End> {
+public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<? super E>> extends AbstractPacketBoundRegistry<E> {
     protected FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<E>> defaultBufCodec;
     private static final Map<String, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS_BY_PATH = new HashMap<>();
-    private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new HashMap<>();
+    private static final Map<FriendlyByteBufCodec<DefaultRegistryBoundPacketPayload<?>>, DefaultPacketBoundRegistry<?>> DEFAULT_SINGLETONS = new LinkedHashMap<>();
 
     public DefaultPacketBoundRegistry(Logger logger, String path, String type, Predicate<ResourceLocation> locFilter, boolean doSync, boolean useTypeIdAsKey) {
         super(logger, path, type, locFilter, doSync, useTypeIdAsKey);
@@ -30,12 +30,12 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends ICodecProvider<E>> DefaultPacketBoundRegistry<E> getDefaultSingleton(FriendlyByteBufCodec<?> bufCodec) {
+    public static <E extends ICodecProvider<? super E>> DefaultPacketBoundRegistry<E> getDefaultSingleton(FriendlyByteBufCodec<?> bufCodec) {
         return (DefaultPacketBoundRegistry<E>) DEFAULT_SINGLETONS.get(bufCodec);
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends ICodecProvider<E>> DefaultPacketBoundRegistry<E> getDefaultSingletonByPath(String path) {
+    public static <E extends ICodecProvider<? super E>> DefaultPacketBoundRegistry<E> getDefaultSingletonByPath(String path) {
         return (DefaultPacketBoundRegistry<E>) DEFAULT_SINGLETONS_BY_PATH.get(path);
     }
 
@@ -46,7 +46,7 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
     }
 
     static void registerSyncDefault() {
-        MinecraftForge.EVENT_BUS.addListener(DefaultSyncer::syncDefault);
+        NeoForge.EVENT_BUS.addListener(DefaultSyncer::syncDefault);
     }
 
     @Override
@@ -65,13 +65,12 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
         @SuppressWarnings({"unchecked", "rawtypes"})
         public static void syncDefault(OnDatapackSyncEvent e) {
             ServerPlayer player = e.getPlayer();
-            PacketDistributor.PacketTarget target = player == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(() -> player);
             DEFAULT_SINGLETONS.forEach((bufCodec, reg) -> {
-                Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.Begin(reg.path));
+                Connection.sendToPlayerOrAll(player, DefaultRegistryBoundPacketPayload.begin(reg.path));
                 reg.registry.forEach((path, item) -> {
-                    Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
+                    Connection.sendToPlayerOrAll(player, new DefaultRegistryBoundPacketPayload(path, item, reg.path));
                 });
-                Connection.sendToTarget(target, new DefaultRegistryBoundPacketPayload.End(reg.path));
+                Connection.sendToPlayerOrAll(player, DefaultRegistryBoundPacketPayload.end(reg.path));
             });
         }
     }
@@ -83,13 +82,16 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
         if (this.defaultBufCodec == null) {
             this.defaultBufCodec = new FriendlyByteBufCodec<>() {
                 @Override
-                public void encode(@NotNull DefaultRegistryBoundPacketPayload<E> value, @NotNull FriendlyByteBuf buf) {
+                public void encode(@NotNull FriendlyByteBuf buf, @NotNull DefaultRegistryBoundPacketPayload<E> value) {
                     String regPath = value.getRegPath();
                     buf.writeInt(regPath.length());
                     buf.writeUtf(regPath);
                     buf.writeResourceLocation(value.getPath());
                     buf.writeNbt((CompoundTag) getCodec().encodeStart(NbtOps.INSTANCE, value.getItem())
-                            .getOrThrow(false,s -> logger.error("Failed parsing item for {}", value.getItem())));
+                            .getOrThrow(s -> {
+                                logger.error("Failed parsing item for {}", value.getItem());
+                                return new RuntimeException(s);
+                            }));
                 }
 
                 @Override
@@ -99,7 +101,10 @@ public abstract class DefaultPacketBoundRegistry<E extends ICodecProvider<E>> ex
                     ResourceLocation path = buf.readResourceLocation();
                     CompoundTag tag = buf.readNbt();
                     var result = getCodec().decode(NbtOps.INSTANCE, tag)
-                            .getOrThrow(false,s -> logger.error("Failed parsing received payload for {}", path)).getFirst();
+                            .getOrThrow(s -> {
+                                logger.error("Failed parsing received payload for {}", path);
+                                return new RuntimeException(s);
+                            }).getFirst();
                     return constructor.apply(path, result, regPath);
                 }
             };

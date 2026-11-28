@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0
+---
+### 2.0.0
+- Neoforge 1.21.1
+#### Runtime.forgemod
+- Add StreamCodec for PacketBoundRegistry
+- Remove `EventKey` (probably temporarily)
+- Refactor `ItemAttributeModifierFactory`
+- SlotOnTakeEvent -> `CombinerResultOnTakeEvent`
+
 ## 1.4
 ---
 ### 1.4.6

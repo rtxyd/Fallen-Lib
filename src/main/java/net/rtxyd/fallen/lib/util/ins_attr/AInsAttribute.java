@@ -1,5 +1,6 @@
 package net.rtxyd.fallen.lib.util.ins_attr;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -51,11 +52,19 @@ public abstract class AInsAttribute<I> {
     public final InsAttributeModifier removeModifier(String name) {return modifiers.remove(name);}
 
     public final Map<String, InsAttributeModifier> getModifiers() {
+        return Collections.unmodifiableMap(modifiers);
+    }
+
+    protected final Map<String, InsAttributeModifier> getModifiersInternal() {
         return modifiers;
     }
 
     protected final void clearModifier() {
         modifiers = new HashMap<>();
+    }
+
+    protected final I getInstance() {
+        return instance;
     }
 
     protected final void calc(InsAttributeModifier modifier) {
@@ -89,11 +98,13 @@ public abstract class AInsAttribute<I> {
     }
 
     public I output(BiFunction<I, Float, I> function) {
-        modifiers.values().forEach(this::calc);
-        computeFinal();
-        I result = function.apply(instance, setFinal);
-        reset();
-        return result;
+        try {
+            modifiers.values().forEach(this::calc);
+            computeFinal();
+            return function.apply(instance, setFinal);
+        } finally {
+            reset();
+        }
     }
 
     protected final void computeFinal() {
